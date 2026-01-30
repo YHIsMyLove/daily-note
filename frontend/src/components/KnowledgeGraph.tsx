@@ -8,9 +8,17 @@ import { useEffect, useRef, useState } from 'react'
 import { Network } from 'vis-network/standalone'
 import { DataSet } from 'vis-data/peer'
 import { useQuery } from '@tanstack/react-query'
-import { graphApi } from '@/lib/api'
-import { GraphData, GraphNode, GraphEdge, GraphFilters } from '@daily-note/shared'
-import { Loader2 } from 'lucide-react'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Badge } from '@/components/ui/badge'
+import { Loader2, FileText } from 'lucide-react'
+import { graphApi, notesApi } from '@/lib/api'
+import { GraphData, GraphNode, GraphEdge, GraphFilters, NoteBlock } from '@daily-note/shared'
+import { formatRelativeTime } from '@/lib/utils'
 
 interface KnowledgeGraphProps {
   filters?: GraphFilters
@@ -22,6 +30,19 @@ export function KnowledgeGraph({ filters, onNodeClick, className = '' }: Knowled
   const containerRef = useRef<HTMLDivElement>(null)
   const networkRef = useRef<Network | null>(null)
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+
+  /**
+   * 获取选中笔记的完整数据
+   */
+  const { data: noteResponse, isLoading: isNoteLoading } = useQuery({
+    queryKey: ['note', selectedNoteId],
+    queryFn: () => notesApi.get(selectedNoteId!),
+    enabled: isSheetOpen && !!selectedNoteId,
+  })
+
+  const selectedNote = noteResponse?.data as NoteBlock
 
   /**
    * 获取图谱数据
@@ -111,9 +132,14 @@ export function KnowledgeGraph({ filters, onNodeClick, className = '' }: Knowled
       if (params.nodes.length > 0) {
         const nodeId = params.nodes[0]
         const node = graphData?.nodes.find((n) => n.id === nodeId)
-        if (node && onNodeClick) {
+        if (node) {
           setSelectedNode(node)
-          onNodeClick(node)
+          if (onNodeClick) {
+            onNodeClick(node)
+          }
+          // 打开笔记预览面板
+          setSelectedNoteId(node.id)
+          setIsSheetOpen(true)
         }
       }
     })
@@ -278,8 +304,150 @@ export function KnowledgeGraph({ filters, onNodeClick, className = '' }: Knowled
   }
 
   return (
-    <div className={`w-full h-full ${className}`}>
-      <div ref={containerRef} className="w-full h-full min-h-[500px]" />
-    </div>
+    <>
+      <div className={`w-full h-full ${className}`}>
+        <div ref={containerRef} className="w-full h-full min-h-[500px]" />
+      </div>
+
+      {/* 笔记预览面板 */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="w-[450px] flex flex-col">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                笔记预览
+              </div>
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {isNoteLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedNote ? (
+              <div className="space-y-4">
+                {/* 分类和标签 */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedNote.category && (
+                    <Badge variant="outline" className="text-xs">
+                      {selectedNote.category}
+                    </Badge>
+                  )}
+                  {selectedNote.tags?.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* 时间信息 */}
+                <div className="text-xs text-muted-foreground">
+                  {formatRelativeTime(selectedNote.createdAt)}
+                  {selectedNote.updatedAt !== selectedNote.createdAt && (
+                    <span className="ml-2">
+                      (更新于 {formatRelativeTime(selectedNote.updatedAt)})
+                    </span>
+                  )}
+                </div>
+
+                {/* 笔记内容 */}
+                <div className="prose prose-sm max-w-none">
+                  <p className="whitespace-pre-wrap">{selectedNote.content}</p>
+                </div>
+
+                {/* 图谱节点额外信息 */}
+                {selectedNode && (
+                  <div className="mt-4 pt-4 border-t space-y-2">
+                    <h4 className="text-sm font-medium">图谱信息</h4>
+                    {selectedNode.sentiment && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">情绪:</span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            selectedNode.sentiment === 'positive'
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : selectedNode.sentiment === 'negative'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'bg-gray-50 text-gray-700 border-gray-200'
+                          }
+                        >
+                          {selectedNode.sentiment === 'positive'
+                            ? '积极'
+                            : selectedNode.sentiment === 'negative'
+                            ? '消极'
+                            : '中性'}
+                        </Badge>
+                      </div>
+                    )}
+                    {selectedNode.importance && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">重要性:</span>
+                        <Badge variant="outline">{selectedNode.importance}/10</Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : selectedNode ? (
+              // 如果没有完整笔记数据，显示图谱节点信息
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedNode.category && (
+                    <Badge variant="outline" className="text-xs">
+                      {selectedNode.category}
+                    </Badge>
+                  )}
+                  {selectedNode.tags?.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+
+                {selectedNode.sentiment && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">情绪:</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        selectedNode.sentiment === 'positive'
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : selectedNode.sentiment === 'negative'
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-gray-50 text-gray-700 border-gray-200'
+                      }
+                    >
+                      {selectedNode.sentiment === 'positive'
+                        ? '积极'
+                        : selectedNode.sentiment === 'negative'
+                        ? '消极'
+                        : '中性'}
+                    </Badge>
+                  </div>
+                )}
+
+                {selectedNode.importance && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">重要性:</span>
+                    <Badge variant="outline">{selectedNode.importance}/10</Badge>
+                  </div>
+                )}
+
+                <div className="prose prose-sm max-w-none">
+                  <p className="whitespace-pre-wrap">{selectedNode.content}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                未找到笔记信息
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }
