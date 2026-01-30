@@ -5,3 +5,6 @@ dist
 gen
 target
 *.db
+
+# Auto Claude data directory
+.auto-claude/
