@@ -1,25 +1,25 @@
 {
   "active": true,
   "spec": "018-sentiment-filter-for-notes",
-  "state": "building",
+  "state": "completed",
   "subtasks": {
-    "completed": 3,
+    "completed": 6,
     "total": 6,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Frontend Sentiment Filter UI",
+    "current": "Integration and Testing",
     "id": null,
-    "total": 1
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 5,
+    "number": 10,
     "started_at": "2026-01-31T00:10:04.568668"
   },
-  "last_update": "2026-01-31T00:24:42.835235"
+  "last_update": "2026-01-31T12:30:00.000000"
 }
