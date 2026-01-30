@@ -58,6 +58,7 @@ export class ClaudeService {
   private readonly maxAttempts: number
   private readonly initialDelay: number
   private readonly timeout: number
+  private requestIdCounter: number = 0
 
   constructor() {
     const apiKey = getApiKey()
@@ -88,6 +89,15 @@ export class ClaudeService {
   }
 
   /**
+   * 生成唯一的请求 ID
+   */
+  private generateRequestId(): string {
+    const timestamp = Date.now()
+    const counter = ++this.requestIdCounter
+    return `req_${timestamp}_${counter}`
+  }
+
+  /**
    * 判断错误是否可重试
    */
   private isRetryableError(error: any): boolean {
@@ -106,21 +116,61 @@ export class ClaudeService {
 
   /**
    * 记录详细错误信息
+   * @param context 操作上下文（如 'classifyNote', 'analyzeTrends'）
+   * @param error 错误对象
+   * @param attempt 当前重试次数
+   * @param requestId 请求 ID
+   * @param additionalContext 额外的上下文信息（如内容长度、模型名称等）
    */
-  private logError(context: string, error: any, attempt?: number): void {
+  private logError(
+    context: string,
+    error: any,
+    attempt?: number,
+    requestId?: string,
+    additionalContext?: Record<string, any>
+  ): void {
     const classified = classifyError(error)
     const userMessage = formatUserMessage(classified)
+    const timestamp = new Date().toISOString()
 
-    console.error(`[ClaudeService] Error in ${context}:`)
-    console.error(`  - Type: ${classified.type}`)
-    console.error(`  - Message: ${userMessage}`)
+    console.error('\n' + '='.repeat(80))
+    console.error(`[ClaudeService] Error in ${context}`)
+    console.error('='.repeat(80))
+    console.error(`Timestamp:       ${timestamp}`)
+    if (requestId) {
+      console.error(`Request ID:      ${requestId}`)
+    }
+    console.error(`Error Type:      ${classified.type}`)
+    console.error(`Retryable:       ${classified.retryable ? 'Yes' : 'No'}`)
     if (attempt !== undefined) {
-      console.error(`  - Attempt: ${attempt}`)
+      console.error(`Attempt:         ${attempt} / ${this.maxAttempts}`)
     }
     if (classified.statusCode) {
-      console.error(`  - Status Code: ${classified.statusCode}`)
+      console.error(`Status Code:     ${classified.statusCode}`)
     }
-    console.error(`  - Details: ${classified.details}`)
+    console.error(`User Message:    ${userMessage}`)
+    console.error(`Details:         ${classified.details}`)
+
+    // 记录额外上下文
+    if (additionalContext && Object.keys(additionalContext).length > 0) {
+      console.error(`Context:`)
+      Object.entries(additionalContext).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.length > 100) {
+          console.error(`  - ${key}: ${value.slice(0, 100)}... (length: ${value.length})`)
+        } else {
+          console.error(`  - ${key}: ${JSON.stringify(value)}`)
+        }
+      })
+    }
+
+    // 记录堆栈跟踪（如果有）
+    if (error.stack) {
+      const stackLines = error.stack.split('\n').slice(0, 5)
+      console.error(`Stack Trace (first 5 lines):`)
+      console.error(stackLines.map(line => `  ${line}`).join('\n'))
+    }
+
+    console.error('='.repeat(80) + '\n')
   }
 
   /**
@@ -134,6 +184,8 @@ export class ClaudeService {
     } = {}
   ): Promise<ClassificationResult> {
     const context = 'classifyNote'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
 
     try {
       return await retryWithBackoff(
@@ -188,12 +240,41 @@ export class ClaudeService {
           initialDelay: this.initialDelay,
           isRetryable: (error) => this.isRetryableError(error),
           onRetry: (error, attempt) => {
-            this.logError(context, error, attempt)
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                contentLength: content.length,
+                contentWordCount: content.split(/\s+/).length,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 1024,
+                existingCategoriesCount: options.existingCategories?.length || 0,
+                existingTagsCount: options.existingTags?.length || 0,
+              }
+            )
           }
         }
       )
     } catch (error) {
-      this.logError(context, error, this.maxAttempts)
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          contentLength: content.length,
+          contentWordCount: content.split(/\s+/).length,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 1024,
+          existingCategoriesCount: options.existingCategories?.length || 0,
+          existingTagsCount: options.existingTags?.length || 0,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
       // 返回默认分类
       return this.getDefaultClassification(content)
     }
@@ -209,6 +290,8 @@ export class ClaudeService {
     tagDistribution: string
   }): Promise<TrendsAnalysisResult> {
     const context = 'analyzeTrends'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
 
     try {
       return await retryWithBackoff(
@@ -245,12 +328,37 @@ export class ClaudeService {
           initialDelay: this.initialDelay,
           isRetryable: (error) => this.isRetryableError(error),
           onRetry: (error, attempt) => {
-            this.logError(context, error, attempt)
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                dateRange: data.dateRange,
+                noteCount: data.noteCount,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 1024,
+              }
+            )
           }
         }
       )
     } catch (error) {
-      this.logError(context, error, this.maxAttempts)
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          dateRange: data.dateRange,
+          noteCount: data.noteCount,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 1024,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
       return {
         summary: '暂无趋势分析',
         topCategories: [],
@@ -270,6 +378,8 @@ export class ClaudeService {
     importantNotes: string
   }): Promise<DailySummaryResult> {
     const context = 'generateDailySummary'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
 
     try {
       return await retryWithBackoff(
@@ -306,12 +416,37 @@ export class ClaudeService {
           initialDelay: this.initialDelay,
           isRetryable: (error) => this.isRetryableError(error),
           onRetry: (error, attempt) => {
-            this.logError(context, error, attempt)
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                date: data.date,
+                noteCount: data.noteCount,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 1024,
+              }
+            )
           }
         }
       )
     } catch (error) {
-      this.logError(context, error, this.maxAttempts)
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          date: data.date,
+          noteCount: data.noteCount,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 1024,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
       return {
         summary: '暂无总结',
         keyAchievements: [],
@@ -337,6 +472,8 @@ export class ClaudeService {
     previousSummary?: any
   }): Promise<SummaryAnalysisResult> {
     const context = 'generateSummaryAnalysis'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
 
     try {
       return await retryWithBackoff(
@@ -411,12 +548,41 @@ ${previousText}
           initialDelay: this.initialDelay,
           isRetryable: (error) => this.isRetryableError(error),
           onRetry: (error, attempt) => {
-            this.logError(context, error, attempt)
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                timeRange: data.timeRange,
+                noteCount: data.noteCount,
+                notesProcessed: data.notes.length,
+                hasPreviousSummary: !!data.previousSummary,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 2048,
+              }
+            )
           }
         }
       )
     } catch (error) {
-      this.logError(context, error, this.maxAttempts)
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          timeRange: data.timeRange,
+          noteCount: data.noteCount,
+          notesProcessed: data.notes.length,
+          hasPreviousSummary: !!data.previousSummary,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 2048,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
       return {
         overview: '暂无总结',
         keyAchievements: [],
@@ -431,6 +597,8 @@ ${previousText}
    */
   async generateHierarchicalSummary(data: HierarchicalSummaryInput & { previousSummary?: any }): Promise<SummaryAnalysisResult> {
     const context = 'generateHierarchicalSummary'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
 
     try {
       return await retryWithBackoff(
@@ -503,12 +671,41 @@ ${previousText}
           initialDelay: this.initialDelay,
           isRetryable: (error) => this.isRetryableError(error),
           onRetry: (error, attempt) => {
-            this.logError(context, error, attempt)
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                level: data.level,
+                timeRange: data.timeRange,
+                subSummariesCount: data.subSummaries.length,
+                hasPreviousSummary: !!data.previousSummary,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 2048,
+              }
+            )
           }
         }
       )
     } catch (error) {
-      this.logError(context, error, this.maxAttempts)
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          level: data.level,
+          timeRange: data.timeRange,
+          subSummariesCount: data.subSummaries.length,
+          hasPreviousSummary: !!data.previousSummary,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 2048,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
       return {
         overview: '暂无总结',
         keyAchievements: [],
