@@ -119,8 +119,8 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
       className="hover:shadow-card-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group bg-background-card/80 backdrop-blur-sm shadow-card p-4 relative"
       onClick={onClick}
     >
-      {/* 操作按钮 - 仅在 hover 时显示 */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      {/* 操作按钮 - 始终显示 */}
+      <div className="absolute top-2 right-2 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
