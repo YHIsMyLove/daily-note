@@ -11,18 +11,36 @@ import { statsApi } from '@/lib/api'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ActivityCalendarProps {
+  mode?: 'single' | 'range'
   onDateSelect?: (date: Date | null) => void
   selectedDate?: Date | null
+  onDateRangeSelect?: (startDate: Date | null, endDate: Date | null) => void
+  selectedDateRange?: { startDate: Date | null; endDate: Date | null }
 }
 
 export function ActivityCalendar({
+  mode = 'single',
   onDateSelect,
   selectedDate,
+  onDateRangeSelect,
+  selectedDateRange,
 }: ActivityCalendarProps) {
   // 状态管理
   const [currentDate, setCurrentDate] = useState(new Date())
   const [dailyData, setDailyData] = useState<ActivityData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // 范围选择状态
+  const [rangeStartDate, setRangeStartDate] = useState<Date | null>(null)
+  const [rangeEndDate, setRangeEndDate] = useState<Date | null>(null)
+
+  // 同步外部传入的 selectedDateRange 到内部状态
+  useEffect(() => {
+    if (mode === 'range' && selectedDateRange) {
+      setRangeStartDate(selectedDateRange.startDate)
+      setRangeEndDate(selectedDateRange.endDate)
+    }
+  }, [mode, selectedDateRange])
 
   // 获取颜色级别
   const getActivityLevel = (count: number): number => {
@@ -116,6 +134,37 @@ export function ActivityCalendar({
     return nextMonth <= new Date()
   }
 
+  // 处理日期点击（支持范围选择）
+  const handleDateClick = (date: Date) => {
+    if (mode === 'single') {
+      onDateSelect?.(date)
+      return
+    }
+
+    // Range mode: 实现两步选择
+    if (!rangeStartDate || (rangeStartDate && rangeEndDate)) {
+      // 第一步：选择开始日期（或者重新开始选择）
+      setRangeStartDate(date)
+      setRangeEndDate(null)
+      onDateRangeSelect?.(date, null)
+    } else {
+      // 第二步：选择结束日期
+      const newStartDate = rangeStartDate
+      const newEndDate = date
+
+      // 确保 startDate <= endDate
+      if (newStartDate <= newEndDate) {
+        setRangeEndDate(newEndDate)
+        onDateRangeSelect?.(newStartDate, newEndDate)
+      } else {
+        // 如果点击的日期在开始日期之前，交换它们
+        setRangeStartDate(newEndDate)
+        setRangeEndDate(newStartDate)
+        onDateRangeSelect?.(newEndDate, newStartDate)
+      }
+    }
+  }
+
   // 通用方块组件
   const ActivitySquare = ({
     value,
@@ -124,6 +173,8 @@ export function ActivityCalendar({
     onClick,
     disabled = false,
     isActive = false,
+    isInRange = false,
+    isRangeBoundary = false,
   }: {
     value: string | number
     label: string
@@ -131,6 +182,8 @@ export function ActivityCalendar({
     onClick?: () => void
     disabled?: boolean
     isActive?: boolean
+    isInRange?: boolean
+    isRangeBoundary?: boolean
   }) => {
     const level = getActivityLevel(count)
 
@@ -140,12 +193,16 @@ export function ActivityCalendar({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          'w-7 h-7 rounded-md transition-all duration-150',
+          'w-7 h-7 rounded-md transition-all duration-150 relative',
           getActivityColor(level),
           count > 0 && !disabled && 'hover:ring-1 hover:ring-white/50 hover:scale-105 cursor-pointer',
           count === 0 && 'opacity-40',
           disabled && 'cursor-not-allowed',
-          isActive && 'ring-2 ring-primary ring-offset-2'
+          // 单选模式或范围边界的高亮
+          isActive && 'ring-2 ring-primary ring-offset-2',
+          // 范围选择模式的样式
+          isInRange && !isRangeBoundary && 'ring-1 ring-primary/50',
+          isRangeBoundary && 'ring-2 ring-primary ring-offset-2'
         )}
         title={`${label}: ${count} 条笔记`}
         aria-label={`${label}, ${count} 条笔记`}
@@ -156,9 +213,50 @@ export function ActivityCalendar({
 
   // 判断当前日期是否匹配 selectedDate
   const isDayActive = (dateStr: string): boolean => {
-    if (!selectedDate) return false
-    const selectedDateStr = selectedDate.toISOString().split('T')[0]
-    return selectedDateStr === dateStr
+    if (mode === 'single') {
+      if (!selectedDate) return false
+      const selectedDateStr = selectedDate.toISOString().split('T')[0]
+      return selectedDateStr === dateStr
+    }
+
+    // Range mode
+    const start = selectedDateRange?.startDate ?? rangeStartDate
+    const end = selectedDateRange?.endDate ?? rangeEndDate
+    if (!start && !end) return false
+
+    const startDateStr = start?.toISOString().split('T')[0]
+    const endDateStr = end?.toISOString().split('T')[0]
+
+    return dateStr === startDateStr || dateStr === endDateStr
+  }
+
+  // 判断日期是否在范围内（用于高亮显示）
+  const isDayInRange = (dateStr: string): boolean => {
+    if (mode === 'single') return false
+
+    const start = selectedDateRange?.startDate ?? rangeStartDate
+    const end = selectedDateRange?.endDate ?? rangeEndDate
+    if (!start || !end) return false
+
+    const date = new Date(dateStr)
+    const startDate = new Date(start.toISOString().split('T')[0])
+    const endDate = new Date(end.toISOString().split('T')[0])
+
+    return date >= startDate && date <= endDate
+  }
+
+  // 判断是否是范围的起始或结束日期
+  const isRangeBoundary = (dateStr: string): boolean => {
+    if (mode === 'single') return false
+
+    const start = selectedDateRange?.startDate ?? rangeStartDate
+    const end = selectedDateRange?.endDate ?? rangeEndDate
+    if (!start && !end) return false
+
+    const startDateStr = start?.toISOString().split('T')[0]
+    const endDateStr = end?.toISOString().split('T')[0]
+
+    return dateStr === startDateStr || dateStr === endDateStr
   }
 
   // 获取视图标题
@@ -235,9 +333,11 @@ export function ActivityCalendar({
                     value={dateStr!}
                     label={`${day!}`}
                     count={count!}
-                    onClick={() => count! > 0 && onDateSelect?.(new Date(dateStr!))}
+                    onClick={() => count! > 0 && handleDateClick(new Date(dateStr!))}
                     disabled={count! === 0}
                     isActive={isDayActive(dateStr!)}
+                    isInRange={isDayInRange(dateStr!)}
+                    isRangeBoundary={isRangeBoundary(dateStr!)}
                   />
                 )
               })}
