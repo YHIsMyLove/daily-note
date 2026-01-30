@@ -14,9 +14,10 @@ import { SettingsSidebar } from '@/components/SettingsSidebar'
 import { SummaryMenu } from '@/components/SummaryMenu'
 import { SummaryResultSheet } from '@/components/SummaryResultSheet'
 import { SummaryHistory } from '@/components/SummaryHistory'
+import { KnowledgeGraph } from '@/components/KnowledgeGraph'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
-import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History } from 'lucide-react'
+import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
@@ -53,6 +54,9 @@ export default function HomePage() {
 
   // 总结历史面板
   const [summaryHistorySheetOpen, setSummaryHistorySheetOpen] = useState(false)
+
+  // 视图模式：list 或 graph
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list')
 
   // SSE 连接
   const { connectionState, isConnected } = useSSE('http://localhost:3001/api/sse', {
@@ -278,6 +282,24 @@ export default function HomePage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}
+            disabled={loading}
+          >
+            {viewMode === 'list' ? (
+              <>
+                <Network className="h-4 w-4 mr-2" />
+                图谱视图
+              </>
+            ) : (
+              <>
+                <ListChecks className="h-4 w-4 mr-2" />
+                列表视图
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setSummaryHistorySheetOpen(true)}
             disabled={loading}
           >
@@ -352,25 +374,36 @@ export default function HomePage() {
             />
           </div>
 
-          {/* 笔记列表 */}
+          {/* 笔记列表 / 图谱视图 */}
           <div className="flex-1 overflow-hidden p-4">
-            <NoteList
-              notes={notes}
-              loading={loading}
-              emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
-              onNoteClick={(note) => {
-                // 点击卡片不做任何操作，可以在此添加其他行为
-              }}
-              onNoteAnalyze={handleAnalyzeNote}
-              onNoteDelete={handleDeleteNote}
-              onUpdateSuccess={loadData}
-              onTaskRefresh={handleRefreshTasks}
-              onRelatedNotesClick={(note) => {
-                // 点击关联图标时打开关联笔记面板
-                setSelectedNoteId(note.id)
-                setRelatedNotesSheetOpen(true)
-              }}
-            />
+            {viewMode === 'list' ? (
+              <NoteList
+                notes={notes}
+                loading={loading}
+                emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
+                onNoteClick={(note) => {
+                  // 点击卡片不做任何操作，可以在此添加其他行为
+                }}
+                onNoteAnalyze={handleAnalyzeNote}
+                onNoteDelete={handleDeleteNote}
+                onUpdateSuccess={loadData}
+                onTaskRefresh={handleRefreshTasks}
+                onRelatedNotesClick={(note) => {
+                  // 点击关联图标时打开关联笔记面板
+                  setSelectedNoteId(note.id)
+                  setRelatedNotesSheetOpen(true)
+                }}
+              />
+            ) : (
+              <KnowledgeGraph
+                filters={{
+                  category: selectedCategory,
+                  tags: selectedTags.length > 0 ? selectedTags : undefined,
+                  date: selectedDate ?? undefined,
+                }}
+                className="h-full"
+              />
+            )}
           </div>
         </main>
       </div>
