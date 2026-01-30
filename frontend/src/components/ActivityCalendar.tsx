@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { ActivityData } from '@daily-note/shared'
 import { statsApi } from '@/lib/api'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { isSameDay, formatLocalDate } from '@/utils/dateUtils'
 
 interface ActivityCalendarProps {
   onDateSelect?: (date: Date | null) => void
@@ -80,8 +81,8 @@ export function ActivityCalendar({
     const today = new Date()
     setCurrentDate(today)
     // 如果当前选中的日期不是今天，则激活今天
-    const selectedDateStr = selectedDate?.toISOString().split('T')[0]
-    const todayStr = today.toISOString().split('T')[0]
+    const selectedDateStr = selectedDate ? formatLocalDate(selectedDate) : null
+    const todayStr = formatLocalDate(today)
     if (selectedDateStr !== todayStr) {
       onDateSelect?.(today)
     }
@@ -157,8 +158,8 @@ export function ActivityCalendar({
   // 判断当前日期是否匹配 selectedDate
   const isDayActive = (dateStr: string): boolean => {
     if (!selectedDate) return false
-    const selectedDateStr = selectedDate.toISOString().split('T')[0]
-    return selectedDateStr === dateStr
+    const cellDate = new Date(dateStr)
+    return isSameDay(cellDate, selectedDate)
   }
 
   // 获取视图标题

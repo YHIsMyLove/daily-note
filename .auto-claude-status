@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "004-30-31-bug",
+  "state": "building",
+  "subtasks": {
+    "completed": 0,
+    "total": 1,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Fix Calendar Date Indicator",
+    "id": 1,
+    "total": 1
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 1,
+    "started_at": "2026-01-30T20:06:05.031203"
+  },
+  "last_update": "2026-01-30T20:06:05.098116"
+}
