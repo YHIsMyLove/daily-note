@@ -67,7 +67,15 @@ export class NoteService {
       5 // 优先级
     )
 
-    // 4. 重新获取包含标签的笔记
+    // 4. 将任务提取任务加入队列
+    queueManager.enqueue(
+      'extract_todo_tasks',
+      { noteId: note.id, content: note.content },
+      note.id,
+      5 // 优先级
+    )
+
+    // 5. 重新获取包含标签的笔记
     const noteWithTags = await prisma.note.findUnique({
       where: { id: note.id },
       include: {
@@ -305,6 +313,16 @@ export class NoteService {
         },
       },
     })
+
+    // 如果内容被更新，触发任务提取
+    if (data.content !== undefined) {
+      queueManager.enqueue(
+        'extract_todo_tasks',
+        { noteId: note.id, content: note.content },
+        note.id,
+        5 // 优先级
+      )
+    }
 
     return this.mapToNoteBlock(note)
   }
