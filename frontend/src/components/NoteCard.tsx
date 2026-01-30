@@ -5,6 +5,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { NoteBlock, UpdateNoteRequest } from '@daily-note/shared'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
@@ -21,6 +22,7 @@ import { Button } from './ui/button'
 import { NoteEditor, NoteEditorData } from './NoteEditor'
 import { MarkdownViewer } from './MarkdownViewer'
 import { notesApi } from '@/lib/api'
+import { isLongFormNote } from '@/lib/note-utils'
 
 interface NoteCardProps {
   note: NoteBlock
@@ -53,12 +55,19 @@ const sentimentIcons: Record<string, string> = {
 }
 
 export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, onTaskRefresh, onRelatedNotesClick, isEditing, onEditStart, onEditEnd }: NoteCardProps) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const categoryColor = categoryColors[note.category || '其他'] || categoryColors['其他']
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onEditStart?.(note.id)
+    // 长篇笔记路由到专用编辑器页面
+    if (isLongFormNote(note)) {
+      router.push(`/notes/${note.id}/edit`)
+    } else {
+      // 片段笔记使用行内编辑
+      onEditStart?.(note.id)
+    }
   }
 
   const handleAnalyze = (e: React.MouseEvent) => {
