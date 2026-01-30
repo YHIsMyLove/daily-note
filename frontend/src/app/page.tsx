@@ -23,13 +23,12 @@ import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
 import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
 import { useSSE } from '@/hooks/useSSE'
+import { useNotes } from '@/hooks/useNotes'
 
 export default function HomePage() {
   const queryClient = useQueryClient()
-  const [notes, setNotes] = useState<NoteBlock[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [tags, setTags] = useState<Tag[]>([])
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
   // 筛选状态
@@ -37,6 +36,28 @@ export default function HomePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // 使用 useNotes hook 获取笔记列表（仅在没有搜索查询时）
+  const skipNotesQuery = !!searchQuery
+  const { data: notesData, isLoading: notesLoading, refetch: refetchNotes } = useNotes(
+    skipNotesQuery
+      ? undefined
+      : {
+          category: selectedCategory,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+          date: selectedDate || undefined,
+          pageSize: 100,
+          dateFilterMode: 'both',
+        }
+  )
+
+  // 搜索结果状态
+  const [searchResults, setSearchResults] = useState<NoteBlock[] | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // 根据是否有搜索查询决定使用哪个数据源
+  const notes = searchQuery ? searchResults || [] : notesData?.notes || []
+  const loading = searchQuery ? searchLoading : notesLoading
 
   // 任务状态面板
   const [taskSheetOpen, setTaskSheetOpen] = useState(false)
@@ -76,7 +97,9 @@ export default function HomePage() {
   const { connectionState, isConnected } = useSSE('http://localhost:3001/api/sse', {
     onTaskCompleted: () => {
       // 任务完成时刷新笔记列表
-      loadData()
+      if (!searchQuery) {
+        refetchNotes()
+      }
     },
   })
 
@@ -91,41 +114,9 @@ export default function HomePage() {
   // 计算角标数量（运行中 + 待处理）
   const badgeCount = (statsResponse?.data?.running || 0) + (statsResponse?.data?.pending || 0)
 
-  // 加载数据
-  const loadData = async () => {
+  // 加载分类和标签
+  const loadCategoriesAndTags = async () => {
     try {
-      setLoading(true)
-
-      // 准备查询参数
-      const params: {
-        category?: string
-        tags?: string[]  // 改为数组
-        date?: Date
-        pageSize: number
-        dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
-      } = {
-        pageSize: 100,
-        dateFilterMode: 'both',  // 默认匹配创建和更新时间
-      }
-
-      if (selectedCategory) {
-        params.category = selectedCategory
-      }
-
-      if (selectedTags.length > 0) {
-        params.tags = selectedTags
-      }
-
-      if (selectedDate) {
-        params.date = selectedDate
-      }
-
-      // 加载笔记列表
-      const notesResponse = await notesApi.list(params)
-
-      setNotes(notesResponse.data?.notes || [])
-
-      // 加载分类和标签
       const [categoriesResponse, tagsResponse] = await Promise.all([
         categoriesApi.list(),
         tagsApi.list(),
@@ -134,27 +125,26 @@ export default function HomePage() {
       setCategories(categoriesResponse.data ?? [])
       setTags(tagsResponse.data ?? [])
     } catch (error) {
-      console.error('Failed to load data:', error)
-    } finally {
-      setLoading(false)
+      console.error('Failed to load categories and tags:', error)
     }
   }
 
   // 搜索笔记
   const searchNotes = async (query: string) => {
     if (!query.trim()) {
-      loadData()
+      setSearchResults(null)
       return
     }
 
     try {
-      setLoading(true)
+      setSearchLoading(true)
       const response = await notesApi.search(query)
-      setNotes(response.data ?? [])
+      setSearchResults(response.data ?? [])
     } catch (error) {
       console.error('Failed to search notes:', error)
+      setSearchResults([])
     } finally {
-      setLoading(false)
+      setSearchLoading(false)
     }
   }
 
@@ -170,7 +160,9 @@ export default function HomePage() {
 
       // 立即刷新任务统计
       queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
-      await loadData()
+      if (!searchQuery) {
+        await refetchNotes()
+      }
     } catch (error) {
       console.error('Failed to create note:', error)
       // 显示详细错误信息
@@ -192,7 +184,9 @@ export default function HomePage() {
 
       // 立即刷新任务统计
       queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
-      await loadData()
+      if (!searchQuery) {
+        await refetchNotes()
+      }
     } catch (error) {
       console.error('Failed to analyze note:', error)
       alert('分析失败，请稍后重试')
@@ -231,7 +225,9 @@ export default function HomePage() {
     if (confirmed) {
       try {
         await notesApi.delete(note.id)
-        await loadData()
+        if (!searchQuery) {
+          await refetchNotes()
+        }
       } catch (error) {
         console.error('Failed to delete note:', error)
         alert('删除失败，请稍后重试')
@@ -239,19 +235,10 @@ export default function HomePage() {
     }
   }
 
-  // 初始加载
+  // 初始加载分类和标签
   useEffect(() => {
-    loadData()
+    loadCategoriesAndTags()
   }, [])
-
-  // 监听筛选条件变化
-  useEffect(() => {
-    if (searchQuery) {
-      searchNotes(searchQuery)
-    } else {
-      loadData()
-    }
-  }, [selectedCategory, selectedTags, selectedDate])
 
   // 监听搜索查询变化
   useEffect(() => {
@@ -345,7 +332,7 @@ export default function HomePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={loadData}
+            onClick={() => refetchNotes()}
             disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -400,7 +387,7 @@ export default function HomePage() {
                 }}
                 onNoteAnalyze={handleAnalyzeNote}
                 onNoteDelete={handleDeleteNote}
-                onUpdateSuccess={loadData}
+                onUpdateSuccess={() => refetchNotes()}
                 onTaskRefresh={handleRefreshTasks}
                 onRelatedNotesClick={(note) => {
                   // 点击关联图标时打开关联笔记面板
