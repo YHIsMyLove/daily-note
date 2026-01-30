@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "009-note-skill",
+  "spec": "021-advanced-tag-management-rename-and-merge",
   "state": "building",
   "subtasks": {
-    "completed": 20,
-    "total": 22,
+    "completed": 1,
+    "total": 9,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Integration Testing and Verification",
+    "current": "Backend API Implementation",
     "id": null,
-    "total": 5
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 21,
-    "started_at": "2026-01-30T21:25:22.602011"
+    "number": 3,
+    "started_at": "2026-01-31T00:13:52.623264"
   },
-  "last_update": "2026-01-30T22:27:00.700066"
+  "last_update": "2026-01-31T00:25:17.097695"
 }

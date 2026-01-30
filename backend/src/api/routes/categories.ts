@@ -268,6 +268,120 @@ export async function categoriesRoutes(fastify: FastifyInstance) {
     }
   })
 
+  // 合并标签
+  fastify.post('/api/tags/merge', async (request, reply) => {
+    try {
+      const { sourceTagId, targetTagId } = request.body as { sourceTagId: string, targetTagId: string }
+
+      // 验证参数
+      if (!sourceTagId || !targetTagId) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Source tag ID and target tag ID are required',
+        })
+      }
+
+      // 检查是否相同
+      if (sourceTagId === targetTagId) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Cannot merge tag with itself',
+        })
+      }
+
+      // 使用事务进行原子操作
+      const result = await prisma.$transaction(async (tx) => {
+        // 检查源标签和目标标签是否存在
+        const sourceTag = await tx.tag.findUnique({
+          where: { id: sourceTagId },
+        })
+
+        const targetTag = await tx.tag.findUnique({
+          where: { id: targetTagId },
+        })
+
+        if (!sourceTag) {
+          throw new Error('SOURCE_NOT_FOUND')
+        }
+
+        if (!targetTag) {
+          throw new Error('TARGET_NOT_FOUND')
+        }
+
+        // 获取源标签的所有 NoteTag 关系
+        const sourceNoteTags = await tx.noteTag.findMany({
+          where: { tagId: sourceTagId },
+          select: { noteId: true },
+        })
+
+        // 获取目标标签已有的 NoteTag 关系
+        const targetNoteTagIds = await tx.noteTag.findMany({
+          where: { tagId: targetTagId },
+          select: { noteId: true },
+        })
+
+        const targetNoteIdSet = new Set(targetNoteTagIds.map(nt => nt.noteId))
+
+        // 转移源标签的 NoteTag 到目标标签（跳过已存在的）
+        for (const noteTag of sourceNoteTags) {
+          if (!targetNoteIdSet.has(noteTag.noteId)) {
+            await tx.noteTag.create({
+              data: {
+                noteId: noteTag.noteId,
+                tagId: targetTagId,
+              },
+            })
+          }
+        }
+
+        // 删除源标签的所有 NoteTag 关系
+        await tx.noteTag.deleteMany({
+          where: { tagId: sourceTagId },
+        })
+
+        // 删除源标签
+        await tx.tag.delete({
+          where: { id: sourceTagId },
+        })
+
+        return {
+          sourceTagId,
+          targetTagId,
+          sourceTagName: sourceTag.name,
+          targetTagName: targetTag.name,
+          transferredCount: sourceNoteTags.length,
+        }
+      })
+
+      return reply.send({
+        success: true,
+        data: result,
+      })
+    } catch (error) {
+      fastify.log.error(error)
+
+      if (error instanceof Error) {
+        if (error.message === 'SOURCE_NOT_FOUND') {
+          return reply.status(404).send({
+            success: false,
+            error: 'Source tag not found',
+          })
+        }
+        if (error.message === 'TARGET_NOT_FOUND') {
+          return reply.status(404).send({
+            success: false,
+            error: 'Target tag not found',
+          })
+        }
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to merge tags',
+      })
+    }
+  })
+
   // 清理没有笔记关联的标签
   fastify.post('/api/tags/cleanup', async (request, reply) => {
     try {
