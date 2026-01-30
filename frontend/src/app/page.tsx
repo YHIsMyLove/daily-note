@@ -369,10 +369,12 @@ export default function HomePage() {
             selectedCategory={selectedCategory}
             selectedTags={selectedTags}
             selectedDate={selectedDate}
+            selectedSentiment={selectedSentiment}
             searchQuery={searchQuery}
             onCategoryChange={setSelectedCategory}
             onTagsChange={setSelectedTags}
             onDateSelect={setSelectedDate}
+            onSentimentChange={setSelectedSentiment}
             onSearchChange={setSearchQuery}
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
           />

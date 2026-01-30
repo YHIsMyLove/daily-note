@@ -10,7 +10,7 @@ import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { Badge } from './ui/badge'
 import { ActivityCalendar } from './ActivityCalendar'
-import { Search, Calendar, Tag, Filter, X, History } from 'lucide-react'
+import { Search, Calendar, Tag, Filter, X, History, Smile } from 'lucide-react'
 import { Category, Tag as TagType } from '@daily-note/shared'
 import { cn } from '@/lib/utils'
 
@@ -20,10 +20,12 @@ interface SidebarProps {
   selectedCategory?: string
   selectedTags?: string[]  // 改为数组
   selectedDate?: Date | null
+  selectedSentiment?: 'positive' | 'neutral' | 'negative'
   searchQuery?: string
   onCategoryChange?: (category: string | undefined) => void
   onTagsChange?: (tags: string[]) => void  // 更新回调签名
   onDateSelect?: (date: Date | null) => void
+  onSentimentChange?: (sentiment: 'positive' | 'neutral' | 'negative' | undefined) => void
   onSearchChange?: (query: string) => void
   onShowSummaryHistory?: () => void
 }
@@ -34,10 +36,12 @@ export function Sidebar({
   selectedCategory,
   selectedTags,  // 解构多选状态
   selectedDate,
+  selectedSentiment,
   searchQuery = '',
   onCategoryChange,
   onTagsChange,  // 解构新的回调
   onDateSelect,
+  onSentimentChange,
   onSearchChange,
   onShowSummaryHistory,
 }: SidebarProps) {
@@ -62,11 +66,12 @@ export function Sidebar({
     onCategoryChange?.(undefined)
     onTagsChange?.([])  // 清空标签数组
     onDateSelect?.(null)
+    onSentimentChange?.(undefined)
     setLocalSearch('')
     onSearchChange?.('')
   }
 
-  const hasFilters = selectedCategory || (selectedTags && selectedTags.length > 0) || localSearch || selectedDate
+  const hasFilters = selectedCategory || (selectedTags && selectedTags.length > 0) || localSearch || selectedDate || selectedSentiment
 
   return (
     <div className="h-full flex flex-col bg-background-secondary border-r border-border">
@@ -157,6 +162,58 @@ export function Sidebar({
                 <span className="text-xs text-text-muted">{category.count}</span>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* 情感筛选 */}
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Smile className="h-4 w-4 text-text-muted" />
+              <h3 className="font-medium text-sm">情感</h3>
+            </div>
+            {selectedSentiment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onSentimentChange?.(undefined)}
+                className="h-7 text-xs"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant={selectedSentiment === 'positive' ? 'default' : 'secondary'}
+              className={cn(
+                'cursor-pointer hover:opacity-80 transition-opacity',
+                selectedSentiment === 'positive' && 'ring-2 ring-primary ring-offset-2'
+              )}
+              onClick={() => onSentimentChange?.(selectedSentiment === 'positive' ? undefined : 'positive')}
+            >
+              积极 😊
+            </Badge>
+            <Badge
+              variant={selectedSentiment === 'neutral' ? 'default' : 'secondary'}
+              className={cn(
+                'cursor-pointer hover:opacity-80 transition-opacity',
+                selectedSentiment === 'neutral' && 'ring-2 ring-primary ring-offset-2'
+              )}
+              onClick={() => onSentimentChange?.(selectedSentiment === 'neutral' ? undefined : 'neutral')}
+            >
+              中性 😐
+            </Badge>
+            <Badge
+              variant={selectedSentiment === 'negative' ? 'default' : 'secondary'}
+              className={cn(
+                'cursor-pointer hover:opacity-80 transition-opacity',
+                selectedSentiment === 'negative' && 'ring-2 ring-primary ring-offset-2'
+              )}
+              onClick={() => onSentimentChange?.(selectedSentiment === 'negative' ? undefined : 'negative')}
+            >
+              消极 😟
+            </Badge>
           </div>
         </div>
 
