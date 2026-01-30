@@ -10,7 +10,7 @@ import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { Badge } from './ui/badge'
 import { ActivityCalendar } from './ActivityCalendar'
-import { Search, Calendar, Tag, Filter, X, History } from 'lucide-react'
+import { Search, Calendar, Tag, Filter, X, History, Trash2 } from 'lucide-react'
 import { Category, Tag as TagType } from '@daily-note/shared'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +26,7 @@ interface SidebarProps {
   onDateSelect?: (date: Date | null) => void
   onSearchChange?: (query: string) => void
   onShowSummaryHistory?: () => void
+  onShowTrash?: () => void
 }
 
 export function Sidebar({
@@ -40,6 +41,7 @@ export function Sidebar({
   onDateSelect,
   onSearchChange,
   onShowSummaryHistory,
+  onShowTrash,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery)
 
@@ -101,6 +103,18 @@ export function Sidebar({
         >
           <History className="h-4 w-4 mr-2" />
           总结历史
+        </Button>
+      </div>
+
+      {/* 回收站按钮 */}
+      <div className="p-4 border-b border-border">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={onShowTrash}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          回收站
         </Button>
       </div>
 
