@@ -19,6 +19,7 @@ import {
 } from './ui/dropdown-menu'
 import { Button } from './ui/button'
 import { NoteEditor, NoteEditorData } from './NoteEditor'
+import { MarkdownViewer } from './MarkdownViewer'
 import { notesApi } from '@/lib/api'
 
 interface NoteCardProps {
@@ -205,10 +206,12 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
           </p>
         )}
 
-        {/* 内容主体 */}
-        <p className="text-sm text-text-primary whitespace-pre-wrap break-words leading-relaxed line-clamp-3">
-          {note.content}
-        </p>
+        {/* 内容主体 - Markdown 渲染 */}
+        <MarkdownViewer
+          content={note.content}
+          className="text-sm text-text-primary break-words leading-relaxed"
+          maxLines={3}
+        />
 
         {/* 底部元信息：标签 + 重要性 + 关联 + 字数 */}
         <div className="flex items-center gap-2 text-xs text-text-muted flex-wrap pt-1">
