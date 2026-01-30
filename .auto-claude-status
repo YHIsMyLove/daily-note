@@ -3,23 +3,23 @@
   "spec": "010-ai",
   "state": "building",
   "subtasks": {
-    "completed": 1,
+    "completed": 3,
     "total": 19,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Database & Types",
+    "current": "Backend API & Services",
     "id": null,
-    "total": 3
+    "total": 7
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 4,
     "started_at": "2026-01-30T21:27:01.208942"
   },
-  "last_update": "2026-01-30T21:30:48.554387"
+  "last_update": "2026-01-30T21:49:05.814171"
 }
