@@ -456,3 +456,22 @@ export interface SummaryHistoryFilters {
   limit?: number
 }
 
+// ===== Todo 相关类型 =====
+
+export type {
+  TodoStatus,
+  TodoPriority,
+  Todo,
+  CreateTodoRequest,
+  UpdateTodoRequest,
+  CompleteTodoRequest,
+  TodoListResponse,
+  TodoFilters,
+  TodoSortBy,
+  TodoSortOrder,
+  TodoListQuery,
+  TaskExtractionResult,
+  AutoCompletionAnalysis,
+  TodoStats,
+} from './todo'
+
