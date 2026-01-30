@@ -1,11 +1,11 @@
 {
   "active": true,
   "spec": "012-improve-notecard-accessibility-always-visible-acti",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
-    "in_progress": 1,
+    "completed": 2,
+    "total": 2,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 3,
     "started_at": "2026-01-31T00:04:40.143692"
   },
-  "last_update": "2026-01-31T00:09:31.725193"
+  "last_update": "2026-01-31T12:00:00.000000"
 }
