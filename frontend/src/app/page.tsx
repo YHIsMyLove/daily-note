@@ -457,6 +457,8 @@ export default function HomePage() {
       <TrashView
         open={trashSheetOpen}
         onOpenChange={setTrashSheetOpen}
+        onRestore={loadData}
+        onDelete={loadData}
       />
 
       {/* 确认对话框提供者 */}

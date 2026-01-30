@@ -18,6 +18,7 @@ interface TrashViewProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onRestore?: () => void // 恢复后的回调
+  onDelete?: () => void // 永久删除后的回调
 }
 
 /**
@@ -49,7 +50,7 @@ function formatDateTime(date: Date): string {
   })
 }
 
-export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
+export function TrashView({ open, onOpenChange, onRestore, onDelete }: TrashViewProps) {
   const [notes, setNotes] = useState<NoteBlock[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,6 +122,7 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
     try {
       await notesApi.permanentDelete(id)
       loadTrash()
+      onDelete?.()
     } catch (err) {
       setError('删除失败，请重试')
     }
