@@ -14,10 +14,10 @@ import { SettingsSidebar } from '@/components/SettingsSidebar'
 import { SummaryMenu } from '@/components/SummaryMenu'
 import { SummaryResultSheet } from '@/components/SummaryResultSheet'
 import { SummaryHistory } from '@/components/SummaryHistory'
-import { FilterActiveIndicator } from '@/components/FilterActiveIndicator'
+import { KnowledgeGraph } from '@/components/KnowledgeGraph'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
-import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History } from 'lucide-react'
+import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
@@ -38,22 +38,6 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // 计算是否有激活的过滤器
-  const hasFilters = Boolean(
-    selectedCategory ||
-    selectedTags.length > 0 ||
-    selectedDate ||
-    searchQuery
-  )
-
-  // 清除所有过滤器
-  const handleClearFilters = () => {
-    setSelectedCategory(undefined)
-    setSelectedTags([])
-    setSelectedDate(null)
-    setSearchQuery('')
-  }
-
   // 任务状态面板
   const [taskSheetOpen, setTaskSheetOpen] = useState(false)
 
@@ -70,6 +54,23 @@ export default function HomePage() {
 
   // 总结历史面板
   const [summaryHistorySheetOpen, setSummaryHistorySheetOpen] = useState(false)
+
+  // 视图模式：list 或 graph
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>(() => {
+    // 从 localStorage 读取保存的视图模式
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('daily-note-view-mode')
+      return (saved === 'graph' || saved === 'list') ? saved : 'list'
+    }
+    return 'list'
+  })
+
+  // 保存视图模式到 localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('daily-note-view-mode', viewMode)
+    }
+  }, [viewMode])
 
   // SSE 连接
   const { connectionState, isConnected } = useSSE('http://localhost:3001/api/sse', {
@@ -286,17 +287,30 @@ export default function HomePage() {
             )}
             <span>{isConnected ? '实时同步' : '已断开'}</span>
           </div>
-          {/* 过滤器激活指示器 */}
-          <FilterActiveIndicator
-            hasFilters={hasFilters}
-            onClear={handleClearFilters}
-          />
         </div>
         <div className="flex items-center gap-3">
           <SummaryMenu
             onAnalyze={handleSummaryAnalyze}
             disabled={loading}
           />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}
+            disabled={loading}
+          >
+            {viewMode === 'list' ? (
+              <>
+                <Network className="h-4 w-4 mr-2" />
+                图谱视图
+              </>
+            ) : (
+              <>
+                <ListChecks className="h-4 w-4 mr-2" />
+                列表视图
+              </>
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -374,25 +388,37 @@ export default function HomePage() {
             />
           </div>
 
-          {/* 笔记列表 */}
+          {/* 笔记列表 / 图谱视图 */}
           <div className="flex-1 overflow-hidden p-4">
-            <NoteList
-              notes={notes}
-              loading={loading}
-              emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
-              onNoteClick={(note) => {
-                // 点击卡片不做任何操作，可以在此添加其他行为
-              }}
-              onNoteAnalyze={handleAnalyzeNote}
-              onNoteDelete={handleDeleteNote}
-              onUpdateSuccess={loadData}
-              onTaskRefresh={handleRefreshTasks}
-              onRelatedNotesClick={(note) => {
-                // 点击关联图标时打开关联笔记面板
-                setSelectedNoteId(note.id)
-                setRelatedNotesSheetOpen(true)
-              }}
-            />
+            {viewMode === 'list' ? (
+              <NoteList
+                notes={notes}
+                loading={loading}
+                emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
+                onNoteClick={(note) => {
+                  // 点击卡片不做任何操作，可以在此添加其他行为
+                }}
+                onNoteAnalyze={handleAnalyzeNote}
+                onNoteDelete={handleDeleteNote}
+                onUpdateSuccess={loadData}
+                onTaskRefresh={handleRefreshTasks}
+                onRelatedNotesClick={(note) => {
+                  // 点击关联图标时打开关联笔记面板
+                  setSelectedNoteId(note.id)
+                  setRelatedNotesSheetOpen(true)
+                }}
+              />
+            ) : (
+              <KnowledgeGraph
+                filters={{
+                  categories: selectedCategory ? [selectedCategory] : undefined,
+                  tags: selectedTags.length > 0 ? selectedTags : undefined,
+                  dateFrom: selectedDate ? selectedDate.toISOString().split('T')[0] : undefined,
+                  dateTo: selectedDate ? selectedDate.toISOString().split('T')[0] : undefined,
+                }}
+                className="h-full"
+              />
+            )}
           </div>
         </main>
       </div>

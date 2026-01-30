@@ -456,3 +456,80 @@ export interface SummaryHistoryFilters {
   limit?: number
 }
 
+// ===== 知识图谱相关类型 =====
+
+/**
+ * 图节点
+ * 表示知识图谱中的一个节点（笔记）
+ */
+export interface GraphNode {
+  id: string                  // 笔记 ID
+  label: string               // 显示标签（笔记内容预览或标题）
+  category?: string           // 分类（用于节点颜色）
+  sentiment?: 'positive' | 'neutral' | 'negative'  // 情感（用于节点颜色）
+  importance?: number         // 重要性（用于节点大小）
+  date: string                // 日期（ISO 字符串）
+  content?: string            // 完整内容（用于点击预览）
+  tags?: string[]             // 标签列表
+  cluster?: string            // 所属聚类标识
+  size?: number               // 节点大小（可由 importance 计算得出）
+  color?: string              // 节点颜色（可由 category/sentiment 计算得出）
+}
+
+/**
+ * 图边
+ * 表示知识图谱中节点之间的关系
+ */
+export interface GraphEdge {
+  id: string                  // 边 ID
+  from: string                // 源节点 ID
+  to: string                  // 目标节点 ID
+  similarity?: number         // 相似度（0-1，用于边的粗细）
+  weight?: number             // 权重（可用于边的粗细）
+  reason?: string             // 关联原因/标签
+  type?: string               // 关系类型（如 'similarity', 'reference', 'tag' 等）
+}
+
+/**
+ * 图数据响应
+ */
+export interface GraphData {
+  nodes: GraphNode[]          // 节点列表
+  edges: GraphEdge[]          // 边列表
+  total: number               // 节点总数
+  stats?: {
+    nodeCount: number         // 节点数量
+    edgeCount: number         // 边数量
+    clusterCount?: number     // 聚类数量
+    categoryDistribution?: Category[]  // 分类分布
+  }
+}
+
+/**
+ * 图查询过滤器
+ */
+export interface GraphFilters {
+  categories?: string[]       // 分类筛选
+  tags?: string[]             // 标签筛选
+  dateFrom?: string           // 起始日期（ISO 字符串）
+  dateTo?: string             // 结束日期（ISO 字符串）
+  minSimilarity?: number      // 最小相似度（过滤边）
+  minImportance?: number      // 最小重要性（过滤节点）
+  limit?: number              // 节点数量限制
+  sentiment?: 'positive' | 'neutral' | 'negative'  // 情感筛选
+  clusterId?: string          // 聚类 ID 筛选
+}
+
+/**
+ * 图查询请求
+ */
+export interface GraphRequest extends GraphFilters {
+  // 继承 GraphFilters 的所有字段
+}
+
+/**
+ * 图数据响应包装
+ */
+export interface GraphResponse extends ApiResponse<GraphData> {
+  // 继承 ApiResponse 的 success, data, error 字段
+}
