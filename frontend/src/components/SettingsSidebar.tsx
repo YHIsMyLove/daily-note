@@ -104,7 +104,7 @@ export function SettingsSidebar({ open, onOpenChange }: SettingsSidebarProps) {
                 <Switch
                   id="ai-auto-completion-default"
                   checked={aiAutoCompletionByDefault}
-                  onCheckedChange={handleAiAutoCompletionByDefault}
+                  onCheckedChange={handleAiAutoCompletionByDefaultChange}
                   disabled={!aiAutoCompletionEnabled}
                 />
               </div>
