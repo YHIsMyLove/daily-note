@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
 import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
+import { TrashView } from '@/components/TrashView'
 import { useSSE } from '@/hooks/useSSE'
 
 export default function HomePage() {
@@ -450,6 +451,12 @@ export default function HomePage() {
       <SummaryHistory
         open={summaryHistorySheetOpen}
         onOpenChange={setSummaryHistorySheetOpen}
+      />
+
+      {/* 回收站面板 */}
+      <TrashView
+        open={trashSheetOpen}
+        onOpenChange={setTrashSheetOpen}
       />
 
       {/* 确认对话框提供者 */}
