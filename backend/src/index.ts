@@ -21,6 +21,7 @@ import { queueManager } from './queue/queue-manager'
 import { executeNoteClassification } from './queue/executors/note-classifier.executor'
 import { executeSummaryAnalysis } from './queue/executors/summary-analyzer.executor'
 import { executeTaskExtraction } from './queue/executors/task-extraction.executor'
+import { executeAutoCompletion } from './queue/executors/auto-complete.executor'
 import { promptService } from './services/prompt.service'
 import { autoSummaryService } from './services/auto-summary.service'
 import { schedulerService } from './services/scheduler.service'
@@ -181,6 +182,10 @@ const start = async () => {
     queueManager.registerExecutor('extract_todo_tasks', {
       type: 'extract_todo_tasks',
       execute: executeTaskExtraction,
+    })
+    queueManager.registerExecutor('auto_complete_todo', {
+      type: 'auto_complete_todo',
+      execute: executeAutoCompletion,
     })
 
     // 启动队列管理器
