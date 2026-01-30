@@ -1,0 +1,4 @@
+﻿src/components/TaskQueuePanel.tsx(77,16): error TS2345: Argument of type 'ClaudeTask[] | undefined' is not assignable to parameter of type 'SetStateAction<ClaudeTask[]>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<ClaudeTask[]>'.
+src/components/TaskQueuePanel.tsx(78,16): error TS2345: Argument of type '{ pending: number; running: number; completed: number; failed: number; maxConcurrency: number; } | undefined' is not assignable to parameter of type 'SetStateAction<QueueStats | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<QueueStats | null>'.

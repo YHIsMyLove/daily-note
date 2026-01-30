@@ -1,0 +1,10 @@
+{
+  "name": "@daily-note/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./types/index.ts",
+  "types": "./types/index.ts",
+  "dependencies": {
+    "typescript": "^5.3.0"
+  }
+}

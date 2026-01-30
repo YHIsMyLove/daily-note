@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "productName": "Daily Note",
+  "version": "1.0.0",
+  "identifier": "com.dailynote.app",
+  "build": {
+    "beforeDevCommand": "pnpm run dev:frontend",
+    "beforeBuildCommand": "pnpm run build:frontend",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../frontend/out"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Daily Note",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "maximized": true,
+        "transparent": false,
+        "decorations": true,
+        "minWidth": 800,
+        "minHeight": 600,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.icns", "icons/icon.ico"]
+  },
+  "plugins": {
+    "devtools": {
+      "enabled": true
+    }
+  }
+}
