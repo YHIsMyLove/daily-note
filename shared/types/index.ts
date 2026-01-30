@@ -87,6 +87,12 @@ export interface SearchRequest {
   dateTo?: Date
 }
 
+// 排序字段
+export type SortField = 'date' | 'createdAt' | 'updatedAt' | 'importance' | 'category' | 'sentiment'
+
+// 排序方向
+export type SortOrder = 'asc' | 'desc'
+
 // 分类结果
 export interface ClassificationResult {
   category: string
