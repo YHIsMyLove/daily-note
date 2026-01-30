@@ -36,6 +36,9 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>()
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedDateFrom, setSelectedDateFrom] = useState<Date | null>(null)
+  const [selectedDateTo, setSelectedDateTo] = useState<Date | null>(null)
+  const [isDateRangeMode, setIsDateRangeMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   // 任务状态面板
@@ -101,6 +104,8 @@ export default function HomePage() {
         category?: string
         tags?: string[]  // 改为数组
         date?: Date
+        dateFrom?: Date
+        dateTo?: Date
         pageSize: number
         dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
       } = {
@@ -116,8 +121,20 @@ export default function HomePage() {
         params.tags = selectedTags
       }
 
-      if (selectedDate) {
-        params.date = selectedDate
+      // 日期筛选：单日期模式或日期范围模式
+      if (isDateRangeMode) {
+        // 日期范围模式
+        if (selectedDateFrom) {
+          params.dateFrom = selectedDateFrom
+        }
+        if (selectedDateTo) {
+          params.dateTo = selectedDateTo
+        }
+      } else {
+        // 单日期模式
+        if (selectedDate) {
+          params.date = selectedDate
+        }
       }
 
       // 加载笔记列表
@@ -155,6 +172,28 @@ export default function HomePage() {
       console.error('Failed to search notes:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 处理日期范围选择
+  const handleDateRangeSelect = (dateFrom: Date | null, dateTo: Date | null) => {
+    setSelectedDateFrom(dateFrom)
+    setSelectedDateTo(dateTo)
+    // 清除单日期选择，避免冲突
+    if (dateFrom || dateTo) {
+      setSelectedDate(null)
+    }
+  }
+
+  // 处理日期范围模式切换
+  const handleDateRangeModeChange = (isRangeMode: boolean) => {
+    setIsDateRangeMode(isRangeMode)
+    // 切换模式时清除日期选择
+    if (isRangeMode) {
+      setSelectedDate(null)
+    } else {
+      setSelectedDateFrom(null)
+      setSelectedDateTo(null)
     }
   }
 
@@ -251,7 +290,7 @@ export default function HomePage() {
     } else {
       loadData()
     }
-  }, [selectedCategory, selectedTags, selectedDate])
+  }, [selectedCategory, selectedTags, selectedDate, selectedDateFrom, selectedDateTo, isDateRangeMode])
 
   // 监听搜索查询变化
   useEffect(() => {
@@ -363,10 +402,15 @@ export default function HomePage() {
             selectedCategory={selectedCategory}
             selectedTags={selectedTags}
             selectedDate={selectedDate}
+            selectedDateFrom={selectedDateFrom}
+            selectedDateTo={selectedDateTo}
+            isDateRangeMode={isDateRangeMode}
             searchQuery={searchQuery}
             onCategoryChange={setSelectedCategory}
             onTagsChange={setSelectedTags}
             onDateSelect={setSelectedDate}
+            onDateRangeSelect={handleDateRangeSelect}
+            onDateRangeModeChange={handleDateRangeModeChange}
             onSearchChange={setSearchQuery}
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
           />
@@ -413,8 +457,16 @@ export default function HomePage() {
                 filters={{
                   categories: selectedCategory ? [selectedCategory] : undefined,
                   tags: selectedTags.length > 0 ? selectedTags : undefined,
-                  dateFrom: selectedDate ? selectedDate.toISOString().split('T')[0] : undefined,
-                  dateTo: selectedDate ? selectedDate.toISOString().split('T')[0] : undefined,
+                  dateFrom: isDateRangeMode && selectedDateFrom
+                    ? selectedDateFrom.toISOString().split('T')[0]
+                    : !isDateRangeMode && selectedDate
+                      ? selectedDate.toISOString().split('T')[0]
+                      : undefined,
+                  dateTo: isDateRangeMode && selectedDateTo
+                    ? selectedDateTo.toISOString().split('T')[0]
+                    : !isDateRangeMode && selectedDate
+                      ? selectedDate.toISOString().split('T')[0]
+                      : undefined,
                 }}
                 className="h-full"
               />
