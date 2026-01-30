@@ -7,9 +7,12 @@
  * - 事件驱动：入队后立即执行，任务完成后检查剩余任务
  * - 服务重启时自动恢复 RUNNING 任务
  * - SSE 实时推送任务状态变化
+ * - 自动重试失败的队列任务（指数退避）
  */
 import { prisma } from '../database/prisma'
 import { sseService } from '../services/sse.service'
+import { classifyError, isRetryable } from '../utils/errors'
+import { calculateDelay } from '../utils/retry'
 
 /**
  * 任务执行器接口
@@ -27,11 +30,24 @@ export class QueueManager {
   private runningCount: number
   private executors: Map<string, TaskExecutor>
   private isProcessing: boolean = false
+  private retryCheckInterval: NodeJS.Timeout | null = null
+
+  // 重试配置
+  private maxRetryAttempts: number
+  private retryInitialDelay: number
+  private retryMaxDelay: number
+  private retryBackoffMultiplier: number
 
   constructor(maxConcurrency: number = 3) {
     this.maxConcurrency = maxConcurrency
     this.runningCount = 0
     this.executors = new Map()
+
+    // 从环境变量读取重试配置
+    this.maxRetryAttempts = parseInt(process.env.CLAUDE_MAX_RETRY_ATTEMPTS || '3')
+    this.retryInitialDelay = parseInt(process.env.CLAUDE_RETRY_INITIAL_DELAY || '1000')
+    this.retryMaxDelay = 10000 // 10秒
+    this.retryBackoffMultiplier = 2
   }
 
   /**
@@ -59,6 +75,11 @@ export class QueueManager {
     // 立即处理一次队列
     await this.processQueue()
 
+    // 启动重试检查定时器（每5秒检查一次是否有任务需要重试）
+    this.retryCheckInterval = setInterval(() => {
+      this.checkRetryTasks()
+    }, 5000)
+
     console.log('[Queue] Queue manager started (event-driven mode)')
   }
 
@@ -71,6 +92,13 @@ export class QueueManager {
     }
 
     this.isProcessing = false
+
+    // 清除重试检查定时器
+    if (this.retryCheckInterval) {
+      clearInterval(this.retryCheckInterval)
+      this.retryCheckInterval = null
+    }
+
     console.log('[Queue] Queue manager stopped')
   }
 
@@ -255,34 +283,125 @@ export class QueueManager {
       // SSE 推送：统计信息更新
       await this.broadcastStats()
     } catch (error) {
-      // 更新为失败状态
-      await prisma.claudeTask.update({
-        where: { id: task.id },
-        data: {
-          status: 'FAILED',
-          error: error instanceof Error ? error.message : String(error),
-          completedAt: new Date(),
-        },
-      })
-
+      const errorMessage = error instanceof Error ? error.message : String(error)
       console.error(`[Queue] Task failed: ${task.id}`, error)
 
-      // SSE 推送：任务失败
-      await sseService.broadcast('task.failed', {
-        taskId: task.id,
-        type: task.type,
-        noteId: task.noteId,
-        status: 'FAILED',
-        error: error instanceof Error ? error.message : String(error),
-      })
+      // 分类错误
+      const classifiedError = classifyError(error)
 
-      // SSE 推送：统计信息更新
-      await this.broadcastStats()
+      // 检查是否应该重试
+      const shouldRetry = classifiedError.retryable && task.retryCount < this.maxRetryAttempts
+
+      if (shouldRetry) {
+        // 计算重试延迟（指数退避）
+        const baseDelay = this.retryInitialDelay * Math.pow(this.retryBackoffMultiplier, task.retryCount)
+        const delay = Math.min(calculateDelay(baseDelay, true), this.retryMaxDelay)
+        const nextRetryAt = new Date(Date.now() + delay)
+
+        // 更新任务为待重试状态
+        await prisma.claudeTask.update({
+          where: { id: task.id },
+          data: {
+            status: 'PENDING',
+            error: errorMessage,
+            retryCount: task.retryCount + 1,
+            lastRetryAt: new Date(),
+            nextRetryAt: nextRetryAt,
+            startedAt: null,
+          },
+        })
+
+        console.log(`[Queue] Task scheduled for retry: ${task.id} (attempt ${task.retryCount + 1}/${this.maxRetryAttempts}, delay ${Math.round(delay)}ms)`)
+
+        // SSE 推送：任务重试
+        await sseService.broadcast('task.retry', {
+          taskId: task.id,
+          type: task.type,
+          noteId: task.noteId,
+          status: 'PENDING',
+          retryCount: task.retryCount + 1,
+          nextRetryAt: nextRetryAt.toISOString(),
+          error: errorMessage,
+        })
+
+        // SSE 推送：统计信息更新
+        await this.broadcastStats()
+      } else {
+        // 不可重试或已达到最大重试次数，标记为失败
+        await prisma.claudeTask.update({
+          where: { id: task.id },
+          data: {
+            status: 'FAILED',
+            error: errorMessage,
+            completedAt: new Date(),
+          },
+        })
+
+        console.error(`[Queue] Task permanently failed: ${task.id} (attempts: ${task.retryCount + 1}/${this.maxRetryAttempts}, retryable: ${classifiedError.retryable})`)
+
+        // SSE 推送：任务失败
+        await sseService.broadcast('task.failed', {
+          taskId: task.id,
+          type: task.type,
+          noteId: task.noteId,
+          status: 'FAILED',
+          error: errorMessage,
+          retryCount: task.retryCount,
+        })
+
+        // SSE 推送：统计信息更新
+        await this.broadcastStats()
+      }
     } finally {
       this.runningCount--
 
       // 事件驱动：任务完成后检查是否还有待处理任务
       setImmediate(() => this.processQueue())
+    }
+  }
+
+  /**
+   * 检查是否有任务需要重试
+   * 定时检查 nextRetryAt <= now 的任务并重新处理
+   */
+  private async checkRetryTasks() {
+    if (!this.isProcessing) {
+      return
+    }
+
+    try {
+      const now = new Date()
+
+      // 查找需要重试的任务
+      const tasksToRetry = await prisma.claudeTask.findMany({
+        where: {
+          status: 'PENDING',
+          nextRetryAt: {
+            lte: now,
+          },
+        },
+      })
+
+      if (tasksToRetry.length > 0) {
+        console.log(`[Queue] Found ${tasksToRetry.length} tasks ready for retry`)
+
+        // 清除 nextRetryAt 标记，让 processQueue 重新处理这些任务
+        await prisma.claudeTask.updateMany({
+          where: {
+            id: {
+              in: tasksToRetry.map((t) => t.id),
+            },
+          },
+          data: {
+            nextRetryAt: null,
+          },
+        })
+
+        // 触发队列处理
+        setImmediate(() => this.processQueue())
+      }
+    } catch (error) {
+      console.error('[Queue] Error checking retry tasks:', error)
     }
   }
 
