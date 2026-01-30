@@ -3,6 +3,7 @@
  * 跨平台支持（桌面端使用本地 API，移动端使用云端 API）
  */
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
+import { toast } from 'sonner'
 import { getPlatform, isTauriEnvironment } from './platform'
 import {
   retryWithBackoff,
@@ -170,6 +171,13 @@ const getApiClient = (): AxiosInstance => {
         errorType,
         retryCount: originalRequest._retryCount || 0,
         message: userMessage,
+      })
+
+      // 显示用户友好的错误提示
+      toast.error(userMessage, {
+        description: originalRequest._retryCount > 0
+          ? `已重试 ${originalRequest._retryCount} 次后失败`
+          : undefined,
       })
 
       // 401 未授权错误特殊处理
