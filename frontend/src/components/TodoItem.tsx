@@ -8,6 +8,8 @@ import { useState } from 'react'
 import { Todo, TodoStatus, TodoPriority } from '@daily-note/shared'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
+import { Switch } from './ui/switch'
+import { Label } from './ui/label'
 import { formatDateTime, formatRelativeTime } from '@/lib/utils'
 import {
   MoreVertical,
@@ -119,25 +121,28 @@ export function TodoItem({
     onDelete?.(todo.id)
   }
 
-  // 切换 AI 自动完成
-  const handleToggleAutoCompletion = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newEnabled = !todo.autoCompletionEnabled
-
+  // 切换 AI 自动完成（用于开关组件）
+  const handleSwitchAutoCompletion = async (checked: boolean) => {
     try {
       setLoading(true)
-      if (newEnabled) {
+      if (checked) {
         await todosApi.enableAutoCompletion(todo.id)
       } else {
         await todosApi.disableAutoCompletion(todo.id)
       }
-      onToggleAutoCompletion?.(todo.id, newEnabled)
+      onToggleAutoCompletion?.(todo.id, checked)
       onUpdateSuccess?.()
     } catch (error) {
       console.error('Failed to toggle auto-completion:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // 切换 AI 自动完成（用于菜单项）
+  const handleToggleAutoCompletion = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    await handleSwitchAutoCompletion(!todo.autoCompletionEnabled)
   }
 
   // 检查是否逾期
@@ -288,6 +293,30 @@ export function TodoItem({
                 #{tag}
               </Badge>
             ))}
+          </div>
+        )}
+
+        {/* AI 自动完成开关 - 仅在未完成时显示 */}
+        {!isCompleted && (
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+            <Switch
+              id={`auto-complete-${todo.id}`}
+              checked={todo.autoCompletionEnabled}
+              onCheckedChange={handleSwitchAutoCompletion}
+              disabled={loading}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <Label
+              htmlFor={`auto-complete-${todo.id}`}
+              className="text-xs text-text-secondary cursor-pointer flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Sparkles className="h-3 w-3" />
+              AI 自动完成
+            </Label>
+            {loading && (
+              <Loader2 className="h-3 w-3 animate-spin text-text-muted" />
+            )}
           </div>
         )}
       </div>
