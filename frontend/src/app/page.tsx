@@ -52,6 +52,9 @@ export default function HomePage() {
   // 移动端侧边栏
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // 侧边栏触发按钮引用（用于焦点管理）
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null)
+
   // 桌面端侧边栏折叠状态
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState<boolean>(() => {
     // 从 localStorage 读取保存的折叠状态
@@ -287,15 +290,26 @@ export default function HomePage() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* 跳转到主内容的无障碍链接 */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg"
+      >
+        跳转到主内容
+      </a>
+
       {/* 顶部标题栏 */}
       <header className="h-14 border-b border-border bg-background-secondary flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           {/* 移动端汉堡菜单按钮 */}
           <Button
+            ref={sidebarTriggerRef}
             variant="ghost"
             size="sm"
             className="lg:hidden"
             onClick={() => setSidebarOpen(true)}
+            aria-label="打开侧边栏"
+            aria-expanded={sidebarOpen}
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -305,12 +319,13 @@ export default function HomePage() {
             size="sm"
             className="hidden lg:flex"
             onClick={() => setDesktopSidebarCollapsed(!desktopSidebarCollapsed)}
-            title={desktopSidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+            aria-label={desktopSidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+            aria-expanded={desktopSidebarCollapsed}
           >
             {desktopSidebarCollapsed ? (
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5 transition-transform duration-200" />
             ) : (
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5 transition-transform duration-200" />
             )}
           </Button>
           <h1 className="text-xl font-bold text-primary">Daily Note</h1>
@@ -400,7 +415,10 @@ export default function HomePage() {
       {/* 主内容区 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 侧边栏 - 桌面端 */}
-        <aside className={`${desktopSidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 hidden lg:block transition-all duration-300`}>
+        <aside
+          className={`${desktopSidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 hidden lg:block transition-all duration-300 ease-in-out`}
+          aria-label="侧边栏"
+        >
           <Sidebar
             categories={categories}
             tags={tags}
@@ -419,8 +437,27 @@ export default function HomePage() {
         </aside>
 
         {/* 移动端侧边栏抽屉 */}
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="w-80 p-0">
+        <Sheet
+          open={sidebarOpen}
+          onOpenChange={(open) => {
+            setSidebarOpen(open)
+            // 当抽屉关闭时，将焦点返回到触发按钮
+            if (!open && sidebarTriggerRef.current) {
+              setTimeout(() => {
+                sidebarTriggerRef.current?.focus()
+              }, 100)
+            }
+          }}
+        >
+          <SheetContent
+            side="left"
+            className="w-80 p-0"
+            aria-label="侧边栏菜单"
+            aria-describedby="sidebar-description"
+          >
+            <span id="sidebar-description" className="sr-only">
+              使用此菜单筛选笔记、浏览日历和查看标签
+            </span>
             <Sidebar
               categories={categories}
               tags={tags}
@@ -453,7 +490,10 @@ export default function HomePage() {
         </Sheet>
 
         {/* 笔记列表区 */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main
+          className="flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out"
+          id="main-content"
+        >
           {/* 快速输入区 */}
           <div className="p-4 border-b border-border">
             <NoteEditor

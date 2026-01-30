@@ -5,7 +5,7 @@
  */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
@@ -50,8 +50,20 @@ export function Sidebar({
   onShowSummaryHistory,
   collapsed,
   onCollapsedChange,
+  open,
+  onOpenChange,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // 当侧边栏打开时，自动聚焦到搜索框（仅在移动端）
+  useEffect(() => {
+    if (open && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 100)
+    }
+  }, [open])
 
   const handleSearch = (value: string) => {
     setLocalSearch(value)
@@ -84,18 +96,28 @@ export function Sidebar({
       {/* 搜索框 */}
       <div className="p-4 border-b border-border">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+          <label htmlFor="sidebar-search" className="sr-only">搜索笔记</label>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
           <Input
+            ref={searchInputRef}
+            id="sidebar-search"
             value={localSearch}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="搜索笔记..."
-            className="pl-10 pr-10 bg-background border-border"
+            className="pl-10 pr-10 bg-background border-border transition-all duration-200 focus:ring-2 focus:ring-ring"
+            aria-label="搜索笔记"
+            aria-describedby="search-description"
           />
+          <span id="search-description" className="sr-only">
+            输入关键词搜索笔记内容
+          </span>
           {localSearch && (
             <button
               onClick={clearFilters}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 rounded-sm text-text-muted hover:text-text-primary hover:bg-background-secondary transition-colors duration-150 flex items-center justify-center"
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 rounded-sm text-text-muted hover:text-text-primary hover:bg-background-secondary transition-all duration-200 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="清除搜索"
+              tabIndex={0}
+              type="button"
             >
               <X className="h-3 w-3" />
             </button>
@@ -107,10 +129,11 @@ export function Sidebar({
       <div className="p-4 border-b border-border">
         <Button
           variant="outline"
-          className="w-full justify-start"
+          className="w-full justify-start transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={onShowSummaryHistory}
+          aria-label="查看总结历史"
         >
-          <History className="h-4 w-4 mr-2" />
+          <History className="h-4 w-4 mr-2" aria-hidden="true" />
           总结历史
         </Button>
       </div>
@@ -138,15 +161,19 @@ export function Sidebar({
               <X className="h-3 w-3" />
             </Button>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1" role="radiogroup" aria-label="分类筛选">
             <button
               onClick={() => onCategoryChange?.(undefined)}
               className={cn(
-                'w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between',
+                'w-full text-left px-3 py-2 rounded-md text-sm transition-all duration-200 flex items-center justify-between focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:shadow-sm',
                 !selectedCategory
-                  ? 'bg-primary/20 text-primary'
+                  ? 'bg-primary/20 text-primary shadow-sm'
                   : 'text-text-secondary hover:bg-background-elevated'
               )}
+              aria-pressed={!selectedCategory}
+              aria-label="全部分类"
+              tabIndex={0}
+              type="button"
             >
               <span>全部</span>
               <span className="text-xs text-text-muted">
@@ -158,11 +185,15 @@ export function Sidebar({
                 key={category.name}
                 onClick={() => onCategoryChange?.(category.name)}
                 className={cn(
-                  'w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between',
+                  'w-full text-left px-3 py-2 rounded-md text-sm transition-all duration-200 flex items-center justify-between focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:shadow-sm',
                   selectedCategory === category.name
-                    ? 'bg-primary/20 text-primary'
+                    ? 'bg-primary/20 text-primary shadow-sm'
                     : 'text-text-secondary hover:bg-background-elevated'
                 )}
+                aria-pressed={selectedCategory === category.name}
+                aria-label={`分类: ${category.name} (${category.count})`}
+                tabIndex={0}
+                type="button"
               >
                 <span>{category.name}</span>
                 <span className="text-xs text-text-muted">{category.count}</span>
@@ -190,7 +221,7 @@ export function Sidebar({
                 </Button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="list" aria-label="标签列表">
               {tags.slice(0, 10).map((tag) => {
                 const isSelected = selectedTags?.includes(tag.name)
                 return (
@@ -198,14 +229,24 @@ export function Sidebar({
                     key={tag.id}
                     variant={isSelected ? 'default' : 'secondary'}
                     className={cn(
-                      'cursor-pointer hover:opacity-80 transition-opacity relative pr-8',
-                      isSelected && 'ring-2 ring-primary ring-offset-2'
+                      'cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 relative pr-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      isSelected && 'ring-2 ring-primary ring-offset-2 shadow-sm'
                     )}
                     onClick={() => selectTag(tag.name)}
+                    role="listitem"
+                    aria-pressed={isSelected}
+                    aria-label={`标签: ${tag.name}${tag.count !== undefined ? ` (${tag.count})` : ''}`}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        selectTag(tag.name)
+                      }
+                    }}
                   >
                     {tag.name}
                     {tag.count !== undefined && (
-                      <span className="ml-1 opacity-70">{tag.count}</span>
+                      <span className="ml-1 opacity-70" aria-label={`${tag.count} 个笔记`}>{tag.count}</span>
                     )}
                     {/* 选中时显示的 X 按钮 */}
                     {isSelected && (
@@ -215,8 +256,9 @@ export function Sidebar({
                           e.stopPropagation()
                           onTagsChange?.(selectedTags!.filter(t => t !== tag.name))
                         }}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-sm flex items-center justify-center hover:bg-primary/80 transition-colors"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 rounded-sm flex items-center justify-center hover:bg-primary/80 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:scale-110"
                         aria-label={`取消选择 ${tag.name}`}
+                        tabIndex={-1}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -250,13 +292,20 @@ export function Sidebar({
   // 桌面端折叠模式
   if (collapsed && onCollapsedChange) {
     return (
-      <div className="h-full flex flex-col bg-background-secondary border-r border-border items-center py-4">
+      <div
+        className="h-full flex flex-col bg-background-secondary border-r border-border items-center py-4 transition-all duration-300 ease-in-out"
+        role="region"
+        aria-label="折叠的侧边栏"
+      >
         <button
           onClick={() => onCollapsedChange(false)}
-          className="p-2 rounded-md hover:bg-background-elevated transition-colors"
-          title="展开侧边栏"
+          className="p-2 rounded-md hover:bg-background-elevated transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:scale-110 active:scale-95"
+          aria-label="展开侧边栏"
+          aria-expanded="false"
+          tabIndex={0}
+          type="button"
         >
-          <ChevronRight className="h-5 w-5 text-text-muted" />
+          <ChevronRight className="h-5 w-5 text-text-muted transition-transform duration-200 hover:scale-110" />
         </button>
       </div>
     )
