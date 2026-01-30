@@ -10,3 +10,4 @@ target
 .auto-claude
 .claude/settings.local.json
 .claude
+.auto-claude-status
