@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit/**)",
+      "Write(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit/**)",
+      "Edit(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit/**)",
+      "Glob(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit/**)",
+      "Grep(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit/**)",
+      "Read(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit\\.auto-claude\\specs\\002-commit/**)",
+      "Write(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit\\.auto-claude\\specs\\002-commit/**)",
+      "Edit(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude\\worktrees\\tasks\\002-commit\\.auto-claude\\specs\\002-commit/**)",
+      "Read(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude/**)",
+      "Write(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude/**)",
+      "Edit(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude/**)",
+      "Glob(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude/**)",
+      "Grep(C:\\Users\\soeaz\\Documents\\Work\\0-make-money\\daily-note\\.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
