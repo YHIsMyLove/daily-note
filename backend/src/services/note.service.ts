@@ -93,6 +93,7 @@ export class NoteService {
   async listNotes(options: {
     date?: Date
     category?: string
+    sentiment?: string
     tag?: string          // 保留向后兼容
     tags?: string[]       // 新增多标签支持
     page?: number
@@ -100,7 +101,7 @@ export class NoteService {
     includeDeleted?: boolean
     dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
   } = {}): Promise<{ notes: NoteBlock[]; total: number }> {
-    const { date, category, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both' } = options
+    const { date, category, sentiment, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both' } = options
 
     // 统一处理标签参数（优先使用 tags，兼容 tag）
     const tagFilters = tags || (tag ? [tag] : undefined)
@@ -114,6 +115,10 @@ export class NoteService {
 
     if (category) {
       baseConditions.category = category
+    }
+
+    if (sentiment) {
+      baseConditions.sentiment = sentiment
     }
 
     if (tagFilters && tagFilters.length > 0) {
@@ -158,6 +163,10 @@ export class NoteService {
         if (baseConditions.category) {
           createdAtCondition.category = baseConditions.category
           updatedAtCondition.category = baseConditions.category
+        }
+        if (baseConditions.sentiment) {
+          createdAtCondition.sentiment = baseConditions.sentiment
+          updatedAtCondition.sentiment = baseConditions.sentiment
         }
         if (baseConditions.noteTags) {
           createdAtCondition.noteTags = baseConditions.noteTags
