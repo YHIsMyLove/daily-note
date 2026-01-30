@@ -3,7 +3,7 @@
  * 负责管理提示词模板的 CRUD 和变量替换
  */
 import { prisma } from '../database/prisma'
-import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT, EXTRACT_TASKS_PROMPT } from '../llm/prompts'
+import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT, EXTRACT_TASKS_PROMPT, AUTO_COMPLETION_ANALYSIS_PROMPT } from '../llm/prompts'
 import { PromptTemplate, PromptTemplateDetail, PromptVariable } from '@daily-note/shared'
 
 /**
@@ -348,6 +348,62 @@ const DEFAULT_TEMPLATES: Array<{
       },
     ],
   },
+  {
+    key: 'auto_completion_analysis',
+    name: '自动补全分析',
+    description: '分析任务是否可以由 AI 自动完成',
+    systemPart: `请严格按照以下 JSON 格式返回，不要包含任何其他文本：
+{
+  "canAutoComplete": true/false,
+  "confidence": 0-100的数字,
+  "approach": "完成任务的详细方法描述",
+  "estimatedSteps": ["步骤1", "步骤2", "步骤3"],
+  "estimatedTime": "预计耗时（如：5-10分钟）",
+  "requirements": ["需求1", "需求2"],
+  "risks": ["风险1", "风险2"]
+}`,
+    userPart: `你是任务自动补全分析助手，请分析以下任务是否可以由 AI 自动完成。
+
+任务信息：
+{task}
+
+自动补全可行性判断标准：
+- 可以自动完成的任务类型：
+  * 信息查询（如：查询天气、搜索资料、查找数据）
+  * 数据处理（如：整理数据、格式转换、统计分析）
+  * 内容生成（如：撰写文档、生成报告、创作内容）
+  * 通知发送（如：发送提醒、邮件通知、消息推送）
+  * 简单决策（如：优先级排序、分类整理）
+
+- 不能自动完成的任务类型：
+  * 需要物理操作的任务（如：购买物品、移动文件、打印文档）
+  * 涉及敏感信息的操作（如：访问密码、私人数据、支付操作）
+  * 需要人工判断的复杂决策（如：创意设计、策略制定）
+  * 需要外部系统访问的任务（如：调用第三方 API、访问外部服务）
+
+置信度评分标准：
+- 90-100：非常确定可以自动完成，任务明确且无风险
+- 70-89：较确定可以自动完成，有轻微不确定性
+- 50-69：可能可以自动完成，需要更多信息验证
+- 30-49：不太建议自动完成，风险较高或不确定性大
+- 10-29：不建议自动完成，很可能失败或出错
+- 0-9：完全不能自动完成，必须人工处理
+
+分析方法：
+1. 仔细分析任务标题和描述
+2. 识别任务类型和核心需求
+3. 评估是否可以通过纯信息处理完成
+4. 识别潜在风险和需要的资源
+5. 给出置信度评分和详细执行方案`,
+    variables: [
+      {
+        name: 'task',
+        description: '任务信息（标题、描述、优先级、截止日期等）',
+        required: true,
+        placeholder: '{task}',
+      },
+    ],
+  },
 ]
 
 export class PromptService {
@@ -621,6 +677,9 @@ export class PromptService {
         break
       case 'extract_tasks':
         prompt = EXTRACT_TASKS_PROMPT
+        break
+      case 'auto_completion_analysis':
+        prompt = AUTO_COMPLETION_ANALYSIS_PROMPT
         break
       default:
         prompt = CLASSIFY_NOTE_PROMPT

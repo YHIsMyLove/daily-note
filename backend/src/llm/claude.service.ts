@@ -69,6 +69,19 @@ export interface TaskExtractionResult {
   isFallback?: boolean
 }
 
+// 自动补全分析结果
+export interface AutoCompletionAnalysisResult {
+  canAutoComplete: boolean
+  confidence: number // 0-100
+  approach: string
+  estimatedSteps: string[]
+  estimatedTime: string
+  requirements: string[]
+  risks: string[]
+  /** 是否为降级结果（API 失败时返回的默认结果） */
+  isFallback?: boolean
+}
+
 export class ClaudeService {
   private client: Anthropic
   private readonly maxAttempts: number
@@ -837,6 +850,192 @@ ${(summary.summary?.insights || []).map((i: string) => `- ${i}`).join('\n') || '
   }
 
   /**
+   * 分析任务是否可以自动完成
+   */
+  async analyzeAutoCompletion(task: {
+    title: string
+    description?: string
+    priority: string
+    dueDate?: string
+  }): Promise<AutoCompletionAnalysisResult> {
+    const context = 'analyzeAutoCompletion'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
+
+    try {
+      return await retryWithBackoff(
+        async () => {
+          // 构建任务描述
+          const taskDescription = `
+任务标题: ${task.title}
+${task.description ? `任务描述: ${task.description}` : ''}
+优先级: ${task.priority}
+${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
+`.trim()
+
+          // 从 PromptService 获取提示词
+          const prompt = await promptService.getPrompt('auto_completion_analysis', {
+            task: taskDescription,
+          })
+
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
+
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
+
+          const result = JSON.parse(jsonMatch[0]) as AutoCompletionAnalysisResult
+
+          // 验证返回结果
+          if (typeof result.canAutoComplete !== 'boolean' ||
+              typeof result.confidence !== 'number' ||
+              !result.approach ||
+              !Array.isArray(result.estimatedSteps)) {
+            throw new Error('Invalid auto-completion analysis result from Claude')
+          }
+
+          // 确保 confidence 在 0-100 范围内
+          result.confidence = Math.max(0, Math.min(100, result.confidence))
+
+          return { ...result, isFallback: false }
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                taskTitle: task.title,
+                taskPriority: task.priority,
+                hasDescription: !!task.description,
+                hasDueDate: !!task.dueDate,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 2048,
+              }
+            )
+          }
+        }
+      )
+    } catch (error) {
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          taskTitle: task.title,
+          taskPriority: task.priority,
+          hasDescription: !!task.description,
+          hasDueDate: !!task.dueDate,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 2048,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
+      // 返回保守的默认分析结果
+      return this.getDefaultAutoCompletionAnalysis(task)
+    }
+  }
+    const context = 'extractTasks'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
+
+    try {
+      return await retryWithBackoff(
+        async () => {
+          const prompt = EXTRACT_TASKS_PROMPT.replace('{content}', content)
+
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
+
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
+
+          const result = JSON.parse(jsonMatch[0]) as TaskExtractionResult
+
+          // 验证返回结果
+          if (!result.tasks || !Array.isArray(result.tasks)) {
+            throw new Error('Invalid task extraction result from Claude')
+          }
+
+          return { ...result, isFallback: false }
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                contentLength: content.length,
+                contentWordCount: content.split(/\s+/).length,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 2048,
+              }
+            )
+          }
+        }
+      )
+    } catch (error) {
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          contentLength: content.length,
+          contentWordCount: content.split(/\s+/).length,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 2048,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
+      // 返回空任务列表
+      return {
+        tasks: [],
+        isFallback: true,
+      }
+    }
+  }
+
+  /**
    * 获取默认分类（当 Claude API 调用失败时）
    */
   private getDefaultClassification(content: string): ClassificationResult {
@@ -864,6 +1063,52 @@ ${(summary.summary?.insights || []).map((i: string) => `- ${i}`).join('\n') || '
       summary: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
       sentiment: 'neutral',
       importance: wordCount > 100 ? 7 : 5,
+      isFallback: true,
+    }
+  }
+
+  /**
+   * 获取默认自动补全分析（当 Claude API 调用失败时）
+   */
+  private getDefaultAutoCompletionAnalysis(task: {
+    title: string
+    description?: string
+    priority: string
+    dueDate?: string
+  }): AutoCompletionAnalysisResult {
+    const lowerTitle = task.title.toLowerCase()
+
+    // 默认保守策略：大多数任务不能自动完成
+    let canAutoComplete = false
+    let confidence = 10
+    let approach = '此任务需要人工判断和执行，AI 无法自动完成'
+    let estimatedSteps: string[] = ['需要用户手动处理']
+    let estimatedTime = '未知'
+    let requirements: string[] = ['需要人工介入']
+    let risks: string[] = ['自动执行可能导致错误']
+
+    // 某些简单的信息查询类任务可能可以自动完成
+    if (lowerTitle.match(/^(查询|搜索|查找|获取)/) &&
+        !lowerTitle.includes('敏感') &&
+        !lowerTitle.includes('私人') &&
+        !lowerTitle.includes('密码')) {
+      canAutoComplete = true
+      confidence = 60
+      approach = '这是一个信息查询类任务，可以尝试自动搜索和汇总信息'
+      estimatedSteps = ['分析查询需求', '搜索相关信息', '汇总结果']
+      estimatedTime = '5-15分钟'
+      requirements = ['明确的信息来源', '清晰的数据格式要求']
+      risks = ['信息可能不准确', '需要验证搜索结果']
+    }
+
+    return {
+      canAutoComplete,
+      confidence,
+      approach,
+      estimatedSteps,
+      estimatedTime,
+      requirements,
+      risks,
       isFallback: true,
     }
   }
