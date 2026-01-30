@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
 import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
 import { useSSE } from '@/hooks/useSSE'
+import { toast } from 'sonner'
 
 export default function HomePage() {
   const queryClient = useQueryClient()
@@ -179,7 +180,7 @@ export default function HomePage() {
         : error instanceof Error
           ? error.message
           : '未知错误'
-      alert(`创建笔记失败: ${errorMessage}`)
+      toast.error(`创建笔记失败: ${errorMessage}`)
     } finally {
       setSubmitting(false)
     }
@@ -195,7 +196,7 @@ export default function HomePage() {
       await loadData()
     } catch (error) {
       console.error('Failed to analyze note:', error)
-      alert('分析失败，请稍后重试')
+      toast.error('分析失败，请稍后重试')
     }
   }
 
@@ -214,7 +215,7 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Failed to create summary:', error)
-      alert('创建总结失败，请稍后重试')
+      toast.error('创建总结失败，请稍后重试')
     }
   }
 
@@ -234,7 +235,7 @@ export default function HomePage() {
         await loadData()
       } catch (error) {
         console.error('Failed to delete note:', error)
-        alert('删除失败，请稍后重试')
+        toast.error('删除失败，请稍后重试')
       }
     }
   }
