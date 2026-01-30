@@ -78,6 +78,22 @@ export interface NotesListResponse {
   pageSize: number
 }
 
+/**
+ * 笔记列表过滤器
+ * 用于查询和过滤笔记列表
+ */
+export interface NotesListFilter {
+  date?: Date                                                      // 单个日期（向后兼容）
+  dateFrom?: Date                                                  // 起始日期（范围筛选）
+  dateTo?: Date                                                    // 结束日期（范围筛选）
+  category?: string                                                // 分类筛选
+  tags?: string[]                                                  // 标签筛选
+  page?: number                                                    // 页码
+  pageSize?: number                                                // 每页数量
+  includeDeleted?: boolean                                         // 是否包含已删除笔记
+  dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'             // 日期筛选模式
+}
+
 // 搜索请求
 export interface SearchRequest {
   query: string
