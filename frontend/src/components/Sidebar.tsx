@@ -10,7 +10,7 @@ import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { Badge } from './ui/badge'
 import { ActivityCalendar } from './ActivityCalendar'
-import { Search, Calendar, Tag, Filter, X, History } from 'lucide-react'
+import { Search, Calendar, Tag, Filter, X, History, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Category, Tag as TagType } from '@daily-note/shared'
 import { cn } from '@/lib/utils'
 
@@ -20,10 +20,15 @@ interface SidebarProps {
   selectedCategory?: string
   selectedTags?: string[]  // 改为数组
   selectedDate?: Date | null
+  selectedDateFrom?: Date | null
+  selectedDateTo?: Date | null
+  isDateRangeMode?: boolean
   searchQuery?: string
   onCategoryChange?: (category: string | undefined) => void
   onTagsChange?: (tags: string[]) => void  // 更新回调签名
   onDateSelect?: (date: Date | null) => void
+  onDateRangeSelect?: (dateFrom: Date | null, dateTo: Date | null) => void
+  onDateRangeModeChange?: (isRangeMode: boolean) => void
   onSearchChange?: (query: string) => void
   onShowSummaryHistory?: () => void
 }
@@ -34,10 +39,15 @@ export function Sidebar({
   selectedCategory,
   selectedTags,  // 解构多选状态
   selectedDate,
+  selectedDateFrom,
+  selectedDateTo,
+  isDateRangeMode = false,
   searchQuery = '',
   onCategoryChange,
   onTagsChange,  // 解构新的回调
   onDateSelect,
+  onDateRangeSelect,
+  onDateRangeModeChange,
   onSearchChange,
   onShowSummaryHistory,
 }: SidebarProps) {
@@ -62,11 +72,12 @@ export function Sidebar({
     onCategoryChange?.(undefined)
     onTagsChange?.([])  // 清空标签数组
     onDateSelect?.(null)
+    onDateRangeSelect?.(null, null)
     setLocalSearch('')
     onSearchChange?.('')
   }
 
-  const hasFilters = selectedCategory || (selectedTags && selectedTags.length > 0) || localSearch || selectedDate
+  const hasFilters = selectedCategory || (selectedTags && selectedTags.length > 0) || localSearch || selectedDate || selectedDateFrom || selectedDateTo
 
   return (
     <div className="h-full flex flex-col bg-background-secondary border-r border-border">
@@ -104,8 +115,38 @@ export function Sidebar({
         </Button>
       </div>
 
+      {/* 日期范围模式切换 */}
+      <div className="px-4 py-2 border-b border-border">
+        <button
+          onClick={() => onDateRangeModeChange?.(!isDateRangeMode)}
+          className={cn(
+            "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors",
+            "hover:bg-background-elevated"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-text-muted" />
+            <span>日期范围模式</span>
+          </div>
+          {isDateRangeMode ? (
+            <ToggleRight className="h-5 w-5 text-primary" />
+          ) : (
+            <ToggleLeft className="h-5 w-5 text-text-muted" />
+          )}
+        </button>
+      </div>
+
       {/* 活跃度日历 */}
-      <ActivityCalendar onDateSelect={onDateSelect} selectedDate={selectedDate} />
+      <ActivityCalendar
+        mode={isDateRangeMode ? 'range' : 'single'}
+        onDateSelect={onDateSelect}
+        selectedDate={selectedDate}
+        onDateRangeSelect={onDateRangeSelect}
+        selectedDateRange={{
+          startDate: selectedDateFrom ?? null,
+          endDate: selectedDateTo ?? null
+        }}
+      />
 
       <ScrollArea className="flex-1">
         {/* 分类筛选 */}
