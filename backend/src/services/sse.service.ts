@@ -18,12 +18,16 @@ export type SSEEventType =
   | 'task.failed'
   | 'task.cancelled'
   | 'stats.updated'
+  | 'todo.created'
+  | 'todo.updated'
+  | 'todo.deleted'
 
 /**
  * SSE 事件数据
  */
 export interface SSEEventData {
   taskId?: string
+  todoId?: string
   type?: string
   noteId?: string
   status?: string
