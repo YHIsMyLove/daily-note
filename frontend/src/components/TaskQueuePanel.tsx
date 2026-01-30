@@ -7,6 +7,7 @@ import { Card } from './ui/card'
 import { Badge } from './ui/badge'
 import { ScrollArea } from './ui/scroll-area'
 import { X, RefreshCw, Clock, CheckCircle, XCircle, Loader } from 'lucide-react'
+import { toast } from 'sonner'
 import { tasksApi } from '@/lib/api'
 import { ClaudeTask, QueueStats, TaskStatus } from '@daily-note/shared'
 import { useSSE } from '@/hooks/useSSE'
@@ -156,7 +157,7 @@ export function TaskQueuePanel() {
       await loadData()
     } catch (error) {
       console.error('Failed to cancel task:', error)
-      alert('取消任务失败')
+      toast.error('取消任务失败')
     }
   }
 
