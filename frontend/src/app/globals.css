@@ -1,0 +1,134 @@
+/**
+ * Daily Note - 现代黑白灰深色主题
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* 黑白灰主题配色 - HSL 格式 */
+    --background: 0 0% 8%;       /* #141414 */
+    --foreground: 0 0% 95%;      /* #F2F2F2 */
+
+    --card: 0 0% 12%;            /* #1F1F1F */
+    --card-foreground: 0 0% 95%; /* #F2F2F2 */
+
+    --popover: 0 0% 10%;         /* #1A1A1A */
+    --popover-foreground: 0 0% 95%;
+
+    /* 强调色 - 绿色系 */
+    --primary: 142 76% 36%;      /* #2ea043 - GitHub 绿 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 10%;       /* #1A1A1A */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 15%;           /* #262626 */
+    --muted-foreground: 0 0% 60%; /* #999999 */
+
+    --accent: 0 0% 25%;          /* #404040 */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;          /* #333333 */
+    --input: 0 0% 12%;
+    --ring: 142 76% 36%;         /* #2ea043 - 强调色 */
+
+    /* 活跃度日历颜色级别 - GitHub 风格绿色渐变 */
+    --activity-0: 0 0% 16%;      /* #292929 - 无活动 */
+    --activity-1: 142 76% 20%;   /* #0e4429 - 低活跃 */
+    --activity-2: 142 76% 36%;   /* #2ea043 - 中低活跃 */
+    --activity-3: 142 76% 50%;   /* #56d364 - 中高活跃 */
+    --activity-4: 142 76% 65%;   /* #9ae6b4 - 高活跃 */
+
+    /* 文本颜色层级系统 */
+    --text-primary: 0 0% 95%;
+    --text-secondary: 0 0% 70%;
+    --text-muted: 0 0% 50%;
+    --text-disabled: 0 0% 35%;
+
+    /* 背景颜色层级系统 */
+    --background-secondary: 0 0% 10%;
+    --background-elevated: 0 0% 12%;
+    --background-hover: 0 0% 15%;
+
+    /* Category and Tag Color System - 分类和标签颜色系统
+     *
+     * These CSS variables define the available colors for categories and tags.
+     * Colors are automatically assigned based on a hash of the category/tag name,
+     * ensuring consistent Color assignment across the application.
+     *
+     * Used by: src/lib/colors.ts
+     * Format: HSL (Hue Saturation Lightness)
+     *
+     * Available Colors:
+     * - blue: Primary blue tones (217°)
+     * - orange: Warm orange tones (25°)
+     * - purple: Rich purple tones (271°)
+     * - green: Natural green tones (142°)
+     * - pink: Soft pink tones (330°)
+     * - cyan: Bright cyan tones (188°)
+     * - yellow: Vibrant yellow tones (48°)
+     * - red: Alert red tones (0°)
+     */
+    --category-blue: 217 91% 60%;
+    --category-orange: 25 95% 53%;
+    --category-purple: 271 81% 56%;
+    --category-green: 142 76% 36%;
+    --category-pink: 330 81% 60%;
+    --category-cyan: 188 94% 43%;
+    --category-yellow: 48 96% 53%;
+    --category-red: 0 72% 51%;
+
+    /* 任务状态颜色系统 */
+    --task-status-pending: 48 96% 53%;    /* 黄色 */
+    --task-status-running: 217 91% 60%;    /* 蓝色 */
+    --task-status-completed: 142 76% 36%;  /* 绿色 */
+    --task-status-failed: 0 72% 51%;       /* 红色 */
+    --task-status-cancelled: 0 0% 45%;     /* 灰色 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* 文本选择颜色 */
+::selection {
+  background-color: hsl(var(--primary) / 0.3);
+}
+
+::-moz-selection {
+  background-color: hsl(var(--primary) / 0.3);
+}
