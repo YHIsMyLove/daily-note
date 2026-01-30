@@ -10,8 +10,8 @@ import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { Badge } from './ui/badge'
 import { ActivityCalendar } from './ActivityCalendar'
-import { Search, Calendar, Tag, Filter, X, History } from 'lucide-react'
-import { Category, Tag as TagType } from '@daily-note/shared'
+import { Search, Calendar, Tag, Filter, X, History, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Category, Tag as TagType, SortField, SortOrder } from '@daily-note/shared'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -21,10 +21,14 @@ interface SidebarProps {
   selectedTags?: string[]  // 改为数组
   selectedDate?: Date | null
   searchQuery?: string
+  orderBy?: SortField
+  order?: SortOrder
   onCategoryChange?: (category: string | undefined) => void
   onTagsChange?: (tags: string[]) => void  // 更新回调签名
   onDateSelect?: (date: Date | null) => void
   onSearchChange?: (query: string) => void
+  onOrderByChange?: (field: SortField) => void
+  onOrderChange?: (order: SortOrder) => void
   onShowSummaryHistory?: () => void
 }
 
@@ -35,10 +39,14 @@ export function Sidebar({
   selectedTags,  // 解构多选状态
   selectedDate,
   searchQuery = '',
+  orderBy = 'updatedAt',
+  order = 'desc',
   onCategoryChange,
   onTagsChange,  // 解构新的回调
   onDateSelect,
   onSearchChange,
+  onOrderByChange,
+  onOrderChange,
   onShowSummaryHistory,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery)
@@ -216,6 +224,92 @@ export function Sidebar({
             </div>
           </div>
         )}
+
+        {/* 排序选项 */}
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <ArrowUpDown className="h-4 w-4 text-text-muted" />
+            <h3 className="font-medium text-sm">排序</h3>
+          </div>
+
+          {/* 排序字段选择 */}
+          <div className="space-y-2">
+            <p className="text-xs text-text-muted mb-2">按字段排序</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={orderBy === 'date' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onOrderByChange?.('date')}
+                className="text-xs"
+              >
+                日期
+              </Button>
+              <Button
+                variant={orderBy === 'createdAt' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onOrderByChange?.('createdAt')}
+                className="text-xs"
+              >
+                创建时间
+              </Button>
+              <Button
+                variant={orderBy === 'updatedAt' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onOrderByChange?.('updatedAt')}
+                className="text-xs"
+              >
+                更新时间
+              </Button>
+              <Button
+                variant={orderBy === 'importance' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onOrderByChange?.('importance')}
+                className="text-xs"
+              >
+                重要性
+              </Button>
+              <Button
+                variant={orderBy === 'category' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onOrderByChange?.('category')}
+                className="text-xs"
+              >
+                分类
+              </Button>
+              <Button
+                variant={orderBy === 'sentiment' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onOrderByChange?.('sentiment')}
+                className="text-xs"
+              >
+                情感
+              </Button>
+            </div>
+
+            {/* 排序方向切换 */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+              <span className="text-xs text-text-muted">排序方向</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onOrderChange?.(order === 'asc' ? 'desc' : 'asc')}
+                className="text-xs"
+              >
+                {order === 'asc' ? (
+                  <>
+                    <ArrowUp className="h-3 w-3 mr-1" />
+                    升序
+                  </>
+                ) : (
+                  <>
+                    <ArrowDown className="h-3 w-3 mr-1" />
+                    降序
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </ScrollArea>
     </div>
   )
