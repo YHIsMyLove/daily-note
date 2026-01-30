@@ -3,7 +3,7 @@
   "spec": "009-note-skill",
   "state": "building",
   "subtasks": {
-    "completed": 3,
+    "completed": 5,
     "total": 22,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 4,
+    "number": 6,
     "started_at": "2026-01-30T21:25:22.602011"
   },
-  "last_update": "2026-01-30T21:31:23.258273"
+  "last_update": "2026-01-30T21:42:22.593000"
 }
