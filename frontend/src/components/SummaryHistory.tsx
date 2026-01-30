@@ -82,13 +82,13 @@ function getModeName(mode: string): string {
  */
 function getModeColor(mode: string): string {
   const colors = {
-    day: 'bg-blue-500',
-    week: 'bg-green-500',
-    month: 'bg-purple-500',
-    year: 'bg-orange-500',
-    custom: 'bg-gray-500',
+    day: 'bg-time-mode-day',
+    week: 'bg-time-mode-week',
+    month: 'bg-time-mode-month',
+    year: 'bg-time-mode-year',
+    custom: 'bg-time-mode-custom',
   }
-  return colors[mode as keyof typeof colors] || 'bg-gray-500'
+  return colors[mode as keyof typeof colors] || 'bg-time-mode-custom'
 }
 
 export function SummaryHistory({ open, onOpenChange }: SummaryHistoryProps) {

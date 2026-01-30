@@ -57,6 +57,41 @@
     --background-secondary: 0 0% 10%;
     --background-elevated: 0 0% 12%;
     --background-hover: 0 0% 15%;
+
+    /* Category and Tag Color System - 分类和标签颜色系统
+     *
+     * These CSS variables define the available colors for categories and tags.
+     * Colors are automatically assigned based on a hash of the category/tag name,
+     * ensuring consistent Color assignment across the application.
+     *
+     * Used by: src/lib/colors.ts
+     * Format: HSL (Hue Saturation Lightness)
+     *
+     * Available Colors:
+     * - blue: Primary blue tones (217°)
+     * - orange: Warm orange tones (25°)
+     * - purple: Rich purple tones (271°)
+     * - green: Natural green tones (142°)
+     * - pink: Soft pink tones (330°)
+     * - cyan: Bright cyan tones (188°)
+     * - yellow: Vibrant yellow tones (48°)
+     * - red: Alert red tones (0°)
+     */
+    --category-blue: 217 91% 60%;
+    --category-orange: 25 95% 53%;
+    --category-purple: 271 81% 56%;
+    --category-green: 142 76% 36%;
+    --category-pink: 330 81% 60%;
+    --category-cyan: 188 94% 43%;
+    --category-yellow: 48 96% 53%;
+    --category-red: 0 72% 51%;
+
+    /* 任务状态颜色系统 */
+    --task-status-pending: 48 96% 53%;    /* 黄色 */
+    --task-status-running: 217 91% 60%;    /* 蓝色 */
+    --task-status-completed: 142 76% 36%;  /* 绿色 */
+    --task-status-failed: 0 72% 51%;       /* 红色 */
+    --task-status-cancelled: 0 0% 45%;     /* 灰色 */
   }
 }
 

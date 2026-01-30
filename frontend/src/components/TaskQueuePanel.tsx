@@ -187,15 +187,15 @@ export function TaskQueuePanel() {
       {stats && (
         <div className="flex flex-wrap gap-3 mb-4 text-sm">
           <div className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-yellow-500" />
+            <Clock className="w-4 h-4 text-task-status-pending" />
             <span>待执行: {stats.pending}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Loader className="w-4 h-4 text-blue-500" />
+            <Loader className="w-4 h-4 text-task-status-running" />
             <span>执行中: {stats.running}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <CheckCircle className="w-4 h-4 text-green-500" />
+            <CheckCircle className="w-4 h-4 text-task-status-completed" />
             <span>已完成: {stats.completed}</span>
           </div>
           <div className="flex items-center gap-1.5">

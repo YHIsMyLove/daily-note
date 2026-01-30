@@ -76,6 +76,25 @@ const config: Config = {
           elevated: 'hsl(var(--background-elevated))',
           hover: 'hsl(var(--background-hover))',
         },
+        // 分类颜色
+        category: {
+          blue: 'hsl(var(--category-blue))',
+          orange: 'hsl(var(--category-orange))',
+          purple: 'hsl(var(--category-purple))',
+          green: 'hsl(var(--category-green))',
+          pink: 'hsl(var(--category-pink))',
+          cyan: 'hsl(var(--category-cyan))',
+          yellow: 'hsl(var(--category-yellow))',
+          red: 'hsl(var(--category-red))',
+        },
+        // 任务状态颜色
+        'task-status': {
+          pending: 'hsl(var(--task-status-pending))',
+          running: 'hsl(var(--task-status-running))',
+          completed: 'hsl(var(--task-status-completed))',
+          failed: 'hsl(var(--task-status-failed))',
+          cancelled: 'hsl(var(--task-status-cancelled))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

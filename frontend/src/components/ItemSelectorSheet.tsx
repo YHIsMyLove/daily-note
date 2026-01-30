@@ -16,27 +16,7 @@ import { Badge } from './ui/badge'
 import { Search, Check } from 'lucide-react'
 import { categoriesApi, tagsApi } from '@/lib/api'
 import { Category, Tag } from '@daily-note/shared'
-
-// 预设颜色池
-const COLOR_POOL = [
-  'bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30',
-  'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30',
-  'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30',
-  'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30',
-  'bg-pink-500/20 text-pink-400 border-pink-500/30 hover:bg-pink-500/30',
-  'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/30',
-  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30',
-  'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30',
-]
-
-// 根据名称获取颜色
-const getColorForName = (name: string): string => {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return COLOR_POOL[Math.abs(hash) % COLOR_POOL.length]
-}
+import { getColorName, getCategoryColorStyle } from '@/lib/colors'
 
 type SelectorMode = 'category' | 'tag'
 
@@ -253,7 +233,7 @@ export function ItemSelectorSheet({
                 const itemName = (item as Category | Tag).name
                 const count = (item as Category | Tag).count ?? 0
                 const selected = isSelected(itemName)
-                const colorClass = getColorForName(itemName)
+                const categoryStyle = getCategoryColorStyle(itemName)
 
                 return (
                   <div
@@ -271,7 +251,19 @@ export function ItemSelectorSheet({
                       )}
                       <Badge
                         variant={selected ? 'default' : 'outline'}
-                        className={!selected ? colorClass : ''}
+                        className="cursor-pointer"
+                        style={!selected ? categoryStyle : undefined}
+                        onMouseEnter={(e) => {
+                          if (!selected) {
+                            const colorName = getColorName(itemName)
+                            e.currentTarget.style.backgroundColor = `hsl(var(--category-${colorName}) / 0.3)`
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!selected) {
+                            e.currentTarget.style.backgroundColor = `hsl(var(--category-${getColorName(itemName)}) / 0.15)`
+                          }
+                        }}
                       >
                         {itemName}
                       </Badge>
