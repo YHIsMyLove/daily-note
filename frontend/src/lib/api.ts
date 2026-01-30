@@ -27,6 +27,16 @@ import {
   Summary,
   SummaryComparison,
   SummaryHistoryFilters,
+  Todo,
+  CreateTodoRequest,
+  UpdateTodoRequest,
+  CompleteTodoRequest,
+  TodoListResponse,
+  TodoFilters,
+  TodoSortBy,
+  TodoSortOrder,
+  TodoListQuery,
+  TodoStats,
 } from '@daily-note/shared'
 
 // API 响应类型（后端返回格式）
@@ -376,5 +386,35 @@ export const summariesApi = {
     apiClient.get(`/api/summaries/${id}/compare`, { params: { compareId } }),
   deleteRecord: (id: string): ApiResponseType<{ message: string }> =>
     apiClient.delete(`/api/summaries/record/${id}`),
+}
+
+/**
+ * Todo API
+ */
+export const todosApi = {
+  create: (data: CreateTodoRequest): ApiResponseType<Todo> =>
+    apiClient.post('/api/todos', data),
+  list: (query?: TodoListQuery): ApiResponseType<TodoListResponse> =>
+    apiClient.get('/api/todos', { params: query }),
+  get: (id: string): ApiResponseType<Todo> =>
+    apiClient.get(`/api/todos/${id}`),
+  update: (id: string, data: UpdateTodoRequest): ApiResponseType<Todo> =>
+    apiClient.put(`/api/todos/${id}`, data),
+  delete: (id: string): ApiResponseType<{ message: string }> =>
+    apiClient.delete(`/api/todos/${id}`),
+  complete: (id: string, data?: CompleteTodoRequest): ApiResponseType<Todo> =>
+    apiClient.patch(`/api/todos/${id}/complete`, data || {}),
+  cancel: (id: string): ApiResponseType<Todo> =>
+    apiClient.patch(`/api/todos/${id}/cancel`),
+  enableAutoCompletion: (id: string): ApiResponseType<Todo> =>
+    apiClient.patch(`/api/todos/${id}/auto-completion/enable`),
+  disableAutoCompletion: (id: string): ApiResponseType<Todo> =>
+    apiClient.patch(`/api/todos/${id}/auto-completion/disable`),
+  stats: (): ApiResponseType<TodoStats> =>
+    apiClient.get('/api/todos/stats'),
+  getByNoteId: (noteId: string): ApiResponseType<Todo[]> =>
+    apiClient.get(`/api/todos/note/${noteId}`),
+  permanentDelete: (id: string): ApiResponseType<{ message: string }> =>
+    apiClient.delete(`/api/todos/${id}/permanent`),
 }
 

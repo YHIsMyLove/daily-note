@@ -1,0 +1,102 @@
+/**
+ * Daily Note - 现代黑白灰深色主题
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MDX Editor Styles */
+@import "@mdxeditor/editor/style.css";
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* 黑白灰主题配色 - HSL 格式 */
+    --background: 0 0% 8%;       /* #141414 */
+    --foreground: 0 0% 95%;      /* #F2F2F2 */
+
+    --card: 0 0% 12%;            /* #1F1F1F */
+    --card-foreground: 0 0% 95%; /* #F2F2F2 */
+
+    --popover: 0 0% 10%;         /* #1A1A1A */
+    --popover-foreground: 0 0% 95%;
+
+    /* 强调色 - 绿色系 */
+    --primary: 142 76% 36%;      /* #2ea043 - GitHub 绿 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 10%;       /* #1A1A1A */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 15%;           /* #262626 */
+    --muted-foreground: 0 0% 60%; /* #999999 */
+
+    --accent: 0 0% 25%;          /* #404040 */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;          /* #333333 */
+    --input: 0 0% 12%;
+    --ring: 142 76% 36%;         /* #2ea043 - 强调色 */
+
+    /* 活跃度日历颜色级别 - GitHub 风格绿色渐变 */
+    --activity-0: 0 0% 16%;      /* #292929 - 无活动 */
+    --activity-1: 142 76% 20%;   /* #0e4429 - 低活跃 */
+    --activity-2: 142 76% 36%;   /* #2ea043 - 中低活跃 */
+    --activity-3: 142 76% 50%;   /* #56d364 - 中高活跃 */
+    --activity-4: 142 76% 65%;   /* #9ae6b4 - 高活跃 */
+
+    /* 文本颜色层级系统 */
+    --text-primary: 0 0% 95%;
+    --text-secondary: 0 0% 70%;
+    --text-muted: 0 0% 50%;
+    --text-disabled: 0 0% 35%;
+
+    /* 背景颜色层级系统 */
+    --background-secondary: 0 0% 10%;
+    --background-elevated: 0 0% 12%;
+    --background-hover: 0 0% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* 文本选择颜色 */
+::selection {
+  background-color: hsl(var(--primary) / 0.3);
+}
+
+::-moz-selection {
+  background-color: hsl(var(--primary) / 0.3);
+}
