@@ -39,7 +39,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   // 计算是否有激活的过滤器
-  const hasActiveFilters = Boolean(
+  const hasFilters = Boolean(
     selectedCategory ||
     selectedTags.length > 0 ||
     selectedDate ||
@@ -288,7 +288,7 @@ export default function HomePage() {
           </div>
           {/* 过滤器激活指示器 */}
           <FilterActiveIndicator
-            hasFilters={hasActiveFilters}
+            hasFilters={hasFilters}
             onClear={handleClearFilters}
           />
         </div>
