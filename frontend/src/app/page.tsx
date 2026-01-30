@@ -56,7 +56,21 @@ export default function HomePage() {
   const [summaryHistorySheetOpen, setSummaryHistorySheetOpen] = useState(false)
 
   // 视图模式：list 或 graph
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>(() => {
+    // 从 localStorage 读取保存的视图模式
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('daily-note-view-mode')
+      return (saved === 'graph' || saved === 'list') ? saved : 'list'
+    }
+    return 'list'
+  })
+
+  // 保存视图模式到 localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('daily-note-view-mode', viewMode)
+    }
+  }, [viewMode])
 
   // SSE 连接
   const { connectionState, isConnected } = useSSE('http://localhost:3001/api/sse', {
