@@ -414,6 +414,7 @@ export default function HomePage() {
             onSearchChange={setSearchQuery}
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
             collapsed={desktopSidebarCollapsed}
+            onCollapsedChange={setDesktopSidebarCollapsed}
           />
         </aside>
 
