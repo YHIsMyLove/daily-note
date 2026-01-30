@@ -1,25 +1,25 @@
 {
   "active": true,
   "spec": "008-knowledge-graph-visualization",
-  "state": "building",
+  "state": "completed",
   "subtasks": {
-    "completed": 9,
+    "completed": 15,
     "total": 15,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Frontend Graph Visualization",
+    "current": "Integration and UI Integration",
     "id": null,
-    "total": 7
+    "total": 4
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 11,
+    "number": 16,
     "started_at": "2026-01-30T20:53:33.764104"
   },
-  "last_update": "2026-01-30T21:40:57.401704"
+  "last_update": "2026-01-30T22:10:00.000000"
 }
