@@ -18,6 +18,7 @@ import { KnowledgeGraph } from '@/components/KnowledgeGraph'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
 import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
@@ -166,6 +167,9 @@ export default function HomePage() {
         importance: data.importance,
       },
       {
+        onSuccess: () => {
+          toast.success('笔记创建成功')
+        },
         onError: (error) => {
           console.error('Failed to create note:', error)
           // 显示详细错误信息
@@ -174,7 +178,7 @@ export default function HomePage() {
             : error instanceof Error
               ? error.message
               : '未知错误'
-          alert(`创建笔记失败: ${errorMessage}`)
+          toast.error(`创建笔记失败: ${errorMessage}`)
         },
       }
     )
@@ -190,9 +194,11 @@ export default function HomePage() {
       if (!searchQuery) {
         await refetchNotes()
       }
+
+      toast.success('笔记分析已提交')
     } catch (error) {
       console.error('Failed to analyze note:', error)
-      alert('分析失败，请稍后重试')
+      toast.error('分析失败，请稍后重试')
     }
   }
 
@@ -208,10 +214,11 @@ export default function HomePage() {
       if (response.data?.taskId) {
         setCurrentSummaryTaskId(response.data.taskId)
         setSummarySheetOpen(true)
+        toast.success('总结分析已开始')
       }
     } catch (error) {
       console.error('Failed to create summary:', error)
-      alert('创建总结失败，请稍后重试')
+      toast.error('创建总结失败，请稍后重试')
     }
   }
 
@@ -227,6 +234,9 @@ export default function HomePage() {
 
     if (confirmed) {
       deleteNoteMutation.mutate(note.id, {
+        onSuccess: () => {
+          toast.success('笔记已删除')
+        },
         onError: (error) => {
           console.error('Failed to delete note:', error)
           // 显示详细错误信息
@@ -235,7 +245,7 @@ export default function HomePage() {
             : error instanceof Error
               ? error.message
               : '未知错误'
-          alert(`删除笔记失败: ${errorMessage}`)
+          toast.error(`删除笔记失败: ${errorMessage}`)
         },
       })
     }
