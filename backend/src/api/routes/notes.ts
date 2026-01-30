@@ -52,6 +52,7 @@ export async function notesRoutes(fastify: FastifyInstance) {
       const { notes, total } = await noteService.listNotes({
         date: query.date ? new Date(query.date) : undefined,
         category: query.category,
+        sentiment: query.sentiment,
         tags,  // 传递标签数组
         dateFilterMode: query.dateFilterMode || 'both',
         page: query.page ? parseInt(query.page) : 1,
