@@ -30,8 +30,7 @@ interface UseSSEReturn {
  * useSSE Hook
  *
  * @param url - SSE 服务器地址
- * @param onTaskCompleted - 任务完成回调
- * @param onStatsUpdated - 统计更新回调
+ * @param callbacks - 事件回调函数
  */
 export function useSSE(
   url?: string,
@@ -42,6 +41,10 @@ export function useSSE(
     onTaskFailed?: (data: SSEEventData) => void
     onTaskCancelled?: (data: SSEEventData) => void
     onStatsUpdated?: (data: SSEEventData) => void
+    onTodoCreated?: (data: SSEEventData) => void
+    onTodoUpdated?: (data: SSEEventData) => void
+    onTodoDeleted?: (data: SSEEventData) => void
+    onTodoCompleted?: (data: SSEEventData) => void
   }
 ): UseSSEReturn {
   const queryClient = useQueryClient()
@@ -172,6 +175,50 @@ export function useSSE(
       }
     })
 
+    // 监听待办创建事件
+    const unsubscribeTodoCreated = sseClient.on('todo.created', (data) => {
+      console.log('[SSE] Todo created:', data)
+      if (mounted) {
+        setEvents((prev) => [...prev, { ...data, eventType: 'todo.created' }])
+        // 刷新待办列表
+        queryClient.invalidateQueries({ queryKey: ['todos'] })
+        callbacksRef.current?.onTodoCreated?.(data)
+      }
+    })
+
+    // 监听待办更新事件
+    const unsubscribeTodoUpdated = sseClient.on('todo.updated', (data) => {
+      console.log('[SSE] Todo updated:', data)
+      if (mounted) {
+        setEvents((prev) => [...prev, { ...data, eventType: 'todo.updated' }])
+        // 刷新待办列表
+        queryClient.invalidateQueries({ queryKey: ['todos'] })
+        callbacksRef.current?.onTodoUpdated?.(data)
+      }
+    })
+
+    // 监听待办删除事件
+    const unsubscribeTodoDeleted = sseClient.on('todo.deleted', (data) => {
+      console.log('[SSE] Todo deleted:', data)
+      if (mounted) {
+        setEvents((prev) => [...prev, { ...data, eventType: 'todo.deleted' }])
+        // 刷新待办列表
+        queryClient.invalidateQueries({ queryKey: ['todos'] })
+        callbacksRef.current?.onTodoDeleted?.(data)
+      }
+    })
+
+    // 监听待办完成事件
+    const unsubscribeTodoCompleted = sseClient.on('todo.completed', (data) => {
+      console.log('[SSE] Todo completed:', data)
+      if (mounted) {
+        setEvents((prev) => [...prev, { ...data, eventType: 'todo.completed' }])
+        // 刷新待办列表
+        queryClient.invalidateQueries({ queryKey: ['todos'] })
+        callbacksRef.current?.onTodoCompleted?.(data)
+      }
+    })
+
     // 清理函数
     return () => {
       mounted = false
@@ -182,6 +229,10 @@ export function useSSE(
       unsubscribeTaskFailed()
       unsubscribeTaskCancelled()
       unsubscribeStatsUpdated()
+      unsubscribeTodoCreated()
+      unsubscribeTodoUpdated()
+      unsubscribeTodoDeleted()
+      unsubscribeTodoCompleted()
       sseClient.close()
     }
   }, [url, queryClient])

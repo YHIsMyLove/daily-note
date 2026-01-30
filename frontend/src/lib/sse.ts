@@ -19,6 +19,10 @@ export type SSEEventType =
   | 'task.failed'
   | 'task.cancelled'
   | 'stats.updated'
+  | 'todo.created'
+  | 'todo.updated'
+  | 'todo.deleted'
+  | 'todo.completed'
 
 /**
  * SSE 事件数据类型
@@ -100,6 +104,10 @@ class SSEClient {
       'task.failed',
       'task.cancelled',
       'stats.updated',
+      'todo.created',
+      'todo.updated',
+      'todo.deleted',
+      'todo.completed',
     ]
 
     eventTypes.forEach((eventType) => {
