@@ -21,6 +21,8 @@ import { queueManager } from './queue/queue-manager'
 import { executeNoteClassification } from './queue/executors/note-classifier.executor'
 import { executeSummaryAnalysis } from './queue/executors/summary-analyzer.executor'
 import { promptService } from './services/prompt.service'
+import { autoSummaryService } from './services/auto-summary.service'
+import { schedulerService } from './services/scheduler.service'
 
 // 获取当前文件所在目录
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -184,6 +186,21 @@ const start = async () => {
     await promptService.initializeDefaults()
     console.log('[PromptService] Default prompt templates initialized')
 
+    // 启动时自动分析：检测缺失的总结并触发自动分析
+    console.log('[AutoSummary] Checking for unsummarized dates on startup...')
+    const analysisResult = await autoSummaryService.triggerAutoAnalysis()
+    if (analysisResult.triggered) {
+      console.log(`[AutoSummary] ${analysisResult.message}`)
+      console.log(`[AutoSummary] Task ID: ${analysisResult.taskId}`)
+    } else {
+      console.log(`[AutoSummary] ${analysisResult.message}`)
+    }
+
+    // 启动周总结调度器
+    console.log('[Scheduler] Starting weekly summary scheduler...')
+    await schedulerService.start()
+    console.log('[Scheduler] Weekly summary scheduler started')
+
     await fastify.listen({ port, host })
 
     console.log(`
@@ -205,6 +222,7 @@ const start = async () => {
 
 // 优雅关闭
 const gracefulShutdown = async () => {
+  await schedulerService.stop()
   await queueManager.stop()
   await fastify.close()
   console.log('Server closed')

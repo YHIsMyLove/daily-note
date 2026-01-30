@@ -91,7 +91,7 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
    */
   const renderLoading = () => (
     <div className="flex flex-col items-center justify-center h-full py-12">
-      <RefreshCw className="h-12 w-12 text-muted-foreground animate-spin mb-4" />
+      <RefreshCw className="h-12 w-12 text-primary animate-spin mb-4" />
       <h3 className="text-lg font-semibold mb-2">正在生成分析报告</h3>
       <p className="text-sm text-muted-foreground text-center max-w-md">
         {taskStatus === 'PENDING' ? '任务排队中...' : '正在分析笔记数据...'}
@@ -104,7 +104,7 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
    */
   const renderError = () => (
     <div className="flex flex-col items-center justify-center h-full py-12">
-      <X className="h-12 w-12 text-red-500 mb-4" />
+      <X className="h-12 w-12 text-destructive mb-4" />
       <h3 className="text-lg font-semibold mb-2">分析失败</h3>
       <p className="text-sm text-muted-foreground text-center max-w-md">{error}</p>
       <Button
@@ -145,9 +145,9 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
       <ScrollArea className="h-full">
         <div className="p-6 space-y-6">
           {/* 时间范围信息 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+          <Card className="border-l-4 border-l-primary">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between text-lg">
                 <span>
                   {result.period.mode === 'day' && '今日总结'}
                   {result.period.mode === 'week' && '本周总结'}
@@ -155,11 +155,11 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
                   {result.period.mode === 'year' && '年度总结'}
                   {result.period.mode === 'custom' && '自定义总结'}
                 </span>
-                <Badge variant="secondary">{result.period.noteCount} 条笔记</Badge>
+                <Badge variant="default" className="font-semibold">{result.period.noteCount} 条笔记</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
+            <CardContent className="pt-0">
+              <p className="text-sm font-medium text-foreground/80">
                 {formatDate(result.period.startDate)}
                 {result.period.startDate !== result.period.endDate && ` ~ ${formatDate(result.period.endDate)}`}
               </p>
@@ -167,27 +167,27 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
           </Card>
 
           {/* AI 总结 */}
-          <Card>
+          <Card className="bg-gradient-to-br from-primary/5 to-transparent">
             <CardHeader>
-              <CardTitle>AI 总结</CardTitle>
+              <CardTitle className="text-lg">AI 总结</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold mb-2">概述</h4>
-                <p className="text-sm text-muted-foreground">{result.summary.overview}</p>
+            <CardContent className="space-y-5">
+              <div className="rounded-lg bg-background/50 p-4 border">
+                <h4 className="text-sm font-semibold mb-3 text-foreground">概述</h4>
+                <p className="text-sm leading-relaxed text-foreground/90">{result.summary.overview}</p>
               </div>
 
               {result.summary.keyAchievements.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                     关键成就
                   </h4>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {result.summary.keyAchievements.map((achievement, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-green-500 mt-0.5">•</span>
-                        {achievement}
+                      <li key={idx} className="text-sm leading-relaxed text-foreground/80 flex items-start gap-2">
+                        <span className="text-green-500 mt-1 font-bold">✓</span>
+                        <span>{achievement}</span>
                       </li>
                     ))}
                   </ul>
@@ -196,15 +196,15 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
 
               {result.summary.pendingTasks.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
                     <Clock className="h-4 w-4 text-orange-500" />
                     待办任务
                   </h4>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {result.summary.pendingTasks.map((task, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-orange-500 mt-0.5">•</span>
-                        {task}
+                      <li key={idx} className="text-sm leading-relaxed text-foreground/80 flex items-start gap-2">
+                        <span className="text-orange-500 mt-1 font-bold">○</span>
+                        <span>{task}</span>
                       </li>
                     ))}
                   </ul>
@@ -213,12 +213,12 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
 
               {result.summary.insights.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">感悟洞察</h4>
-                  <ul className="space-y-1">
+                  <h4 className="text-sm font-semibold mb-3 text-foreground">感悟洞察</h4>
+                  <ul className="space-y-2">
                     {result.summary.insights.map((insight, idx) => (
-                      <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-blue-500 mt-0.5">•</span>
-                        {insight}
+                      <li key={idx} className="text-sm leading-relaxed text-foreground/80 flex items-start gap-2">
+                        <span className="text-blue-500 mt-1">💡</span>
+                        <span>{insight}</span>
                       </li>
                     ))}
                   </ul>
@@ -230,18 +230,18 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
           {/* 心情曲线 */}
           {result.sentimentCurve.daily.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between text-lg">
                   <span>心情曲线</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5">
                     {getSentimentTrendIcon(result.sentimentCurve.trend)}
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm font-medium">
                       {result.sentimentCurve.summary}
                     </span>
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <SentimentCurveChart data={result.sentimentCurve.daily} />
               </CardContent>
             </Card>
@@ -250,35 +250,35 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
           {/* 笔记统计 */}
           <Card>
             <CardHeader>
-              <CardTitle>笔记统计</CardTitle>
+              <CardTitle className="text-lg">笔记统计</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-2xl font-bold">{result.noteStatistics.totalCount}</p>
-                  <p className="text-sm text-muted-foreground">总笔记数</p>
+                <div className="rounded-lg bg-primary/10 p-4 text-center">
+                  <p className="text-3xl font-bold text-primary">{result.noteStatistics.totalCount}</p>
+                  <p className="text-sm font-medium text-foreground/70 mt-1">总笔记数</p>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{result.noteStatistics.dailyAverage}</p>
-                  <p className="text-sm text-muted-foreground">日均笔记</p>
+                <div className="rounded-lg bg-secondary p-4 text-center">
+                  <p className="text-3xl font-bold">{result.noteStatistics.dailyAverage}</p>
+                  <p className="text-sm font-medium text-foreground/70 mt-1">日均笔记</p>
                 </div>
               </div>
 
               {result.noteStatistics.categoryDistribution.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">分类分布</h4>
-                  <div className="space-y-2">
+                <div className="rounded-lg bg-muted/30 p-4">
+                  <h4 className="text-sm font-semibold mb-3 text-foreground">分类分布</h4>
+                  <div className="space-y-3">
                     {result.noteStatistics.categoryDistribution.slice(0, 5).map((cat) => (
-                      <div key={cat.category} className="flex items-center justify-between">
-                        <span className="text-sm">{cat.category}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full"
-                              style={{ width: `${cat.percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-sm text-muted-foreground">{cat.count}</span>
+                      <div key={cat.category} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{cat.category}</span>
+                          <span className="text-muted-foreground">{cat.count}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${cat.percentage}%` }}
+                          />
                         </div>
                       </div>
                     ))}
@@ -288,51 +288,51 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
 
               {result.noteStatistics.topTags.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">热门标签</h4>
+                  <h4 className="text-sm font-semibold mb-3 text-foreground">热门标签</h4>
                   <div className="flex flex-wrap gap-2">
                     {result.noteStatistics.topTags.slice(0, 10).map((tag) => (
-                      <Badge key={tag.tag} variant="secondary">
-                        {tag.tag} ({tag.count})
+                      <Badge key={tag.tag} variant="secondary" className="font-medium">
+                        {tag.tag} <span className="ml-1 text-muted-foreground">({tag.count})</span>
                       </Badge>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div>
-                <h4 className="text-sm font-semibold mb-2">重要性分布</h4>
+              <div className="rounded-lg bg-muted/30 p-4">
+                <h4 className="text-sm font-semibold mb-3 text-foreground">重要性分布</h4>
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-green-500">
+                  <div className="text-center rounded-lg bg-green-500/10 p-3">
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {result.noteStatistics.importanceDistribution.high}
                     </p>
-                    <p className="text-xs text-muted-foreground">高 (7-10)</p>
+                    <p className="text-xs font-medium text-foreground/70 mt-1">高 (7-10)</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-yellow-500">
+                  <div className="text-center rounded-lg bg-yellow-500/10 p-3">
+                    <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                       {result.noteStatistics.importanceDistribution.medium}
                     </p>
-                    <p className="text-xs text-muted-foreground">中 (4-6)</p>
+                    <p className="text-xs font-medium text-foreground/70 mt-1">中 (4-6)</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-500">
+                  <div className="text-center rounded-lg bg-gray-400/10 p-3">
+                    <p className="text-2xl font-bold text-gray-500">
                       {result.noteStatistics.importanceDistribution.low}
                     </p>
-                    <p className="text-xs text-muted-foreground">低 (1-3)</p>
+                    <p className="text-xs font-medium text-foreground/70 mt-1">低 (1-3)</p>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold mb-2">字数统计</h4>
+              <div className="rounded-lg bg-muted/30 p-4">
+                <h4 className="text-sm font-semibold mb-3 text-foreground">字数统计</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">总字数：</span>
-                    <span className="font-medium">{result.noteStatistics.wordCountStats.total}</span>
+                    <span className="font-bold text-foreground">{result.noteStatistics.wordCountStats.total}</span>
                   </div>
-                  <div>
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">平均字数：</span>
-                    <span className="font-medium">{result.noteStatistics.wordCountStats.average}</span>
+                    <span className="font-bold text-foreground">{result.noteStatistics.wordCountStats.average}</span>
                   </div>
                 </div>
               </div>
@@ -343,31 +343,38 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
           {result.taskCompletion.mentioned > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>任务完成情况</CardTitle>
+                <CardTitle className="text-lg">任务完成情况</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-muted p-4 text-center">
                     <p className="text-2xl font-bold">{result.taskCompletion.mentioned}</p>
-                    <p className="text-sm text-muted-foreground">提及任务</p>
+                    <p className="text-sm font-medium text-foreground/70 mt-1">提及任务</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-500">
+                  <div className="rounded-lg bg-green-500/10 p-4 text-center">
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {result.taskCompletion.completed}
                     </p>
-                    <p className="text-sm text-muted-foreground">已完成</p>
+                    <p className="text-sm font-medium text-foreground/70 mt-1">已完成</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-500">
+                  <div className="rounded-lg bg-orange-500/10 p-4 text-center">
+                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                       {result.taskCompletion.pending}
                     </p>
-                    <p className="text-sm text-muted-foreground">待完成</p>
+                    <p className="text-sm font-medium text-foreground/70 mt-1">待完成</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    完成率：<span className="font-semibold">{result.taskCompletion.completionRate}%</span>
-                  </p>
+                <div className="rounded-lg bg-muted/30 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">完成率</span>
+                    <span className="font-bold text-lg text-primary">{result.taskCompletion.completionRate}%</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden mt-2">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${result.taskCompletion.completionRate}%` }}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -375,10 +382,10 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
 
           {/* 时间分布 */}
           <Card>
-            <CardHeader>
-              <CardTitle>时间分布</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">时间分布</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <TimeDistributionChart data={result.timeDistribution} />
             </CardContent>
           </Card>
@@ -393,13 +400,14 @@ export function SummaryResultSheet({ open, onOpenChange, taskId }: SummaryResult
         <SheetContent className="w-full sm:max-w-2xl">
           <SheetHeader>
             <div className="flex items-center justify-between">
-              <SheetTitle>智能总结分析</SheetTitle>
+              <SheetTitle className="text-xl">智能总结分析</SheetTitle>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowHistory(true)}
+                className="gap-2"
               >
-                <History className="h-4 w-4 mr-2" />
+                <History className="h-4 w-4" />
                 查看历史
               </Button>
             </div>
