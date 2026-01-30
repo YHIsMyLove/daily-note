@@ -332,6 +332,7 @@ export default function HomePage() {
             onTagsChange={setSelectedTags}
             onDateSelect={setSelectedDate}
             onSearchChange={setSearchQuery}
+            onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
           />
         </aside>
 
