@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,7 +59,7 @@ export function PromptEditorSheet({ promptKey, open, onOpenChange, onSuccess }: 
   const handleSave = async () => {
     try {
       if (!name.trim()) {
-        alert('请输入名称')
+        toast.error('请输入名称')
         return
       }
 
@@ -68,7 +69,7 @@ export function PromptEditorSheet({ promptKey, open, onOpenChange, onSuccess }: 
       } else {
         // 创建新提示词
         if (!key.trim()) {
-          alert('请输入标识符')
+          toast.error('请输入标识符')
           return
         }
         await promptsApi.create({
@@ -83,7 +84,7 @@ export function PromptEditorSheet({ promptKey, open, onOpenChange, onSuccess }: 
       onSuccess()
     } catch (error) {
       console.error('Failed to save prompt:', error)
-      alert('保存失败，请稍后重试')
+      toast.error('保存失败，请稍后重试')
     }
   }
 
