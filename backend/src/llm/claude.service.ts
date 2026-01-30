@@ -955,6 +955,11 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
       return this.getDefaultAutoCompletionAnalysis(task)
     }
   }
+
+  /**
+   * 从文本内容中提取任务
+   */
+  async extractTasks(content: string): Promise<TaskExtractionResult> {
     const context = 'extractTasks'
     const requestId = this.generateRequestId()
     const startTime = Date.now()
