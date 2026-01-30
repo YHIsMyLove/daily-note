@@ -17,6 +17,7 @@ import { tasksRoutes } from './api/routes/tasks'
 import { sseRoutes } from './api/routes/sse'
 import { promptsRoutes } from './api/routes/prompts'
 import summariesRoutes from './api/routes/summaries'
+import { todosRoutes } from './api/routes/todos'
 import { queueManager } from './queue/queue-manager'
 import { executeNoteClassification } from './queue/executors/note-classifier.executor'
 import { executeSummaryAnalysis } from './queue/executors/summary-analyzer.executor'
@@ -127,6 +128,7 @@ fastify.register(tasksRoutes)
 fastify.register(sseRoutes)
 fastify.register(promptsRoutes, { prefix: '/api/prompts' })
 fastify.register(summariesRoutes, { prefix: '/api/summaries' })
+fastify.register(todosRoutes)
 
 // 健康检查
 fastify.get('/health', async () => {
