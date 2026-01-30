@@ -10,7 +10,7 @@ import { Button } from './ui/button'
 import { ScrollArea } from './ui/scroll-area'
 import { Badge } from './ui/badge'
 import { ActivityCalendar } from './ActivityCalendar'
-import { Search, Calendar, Tag, Filter, X } from 'lucide-react'
+import { Search, Calendar, Tag, Filter, X, History } from 'lucide-react'
 import { Category, Tag as TagType } from '@daily-note/shared'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +25,7 @@ interface SidebarProps {
   onTagsChange?: (tags: string[]) => void  // 更新回调签名
   onDateSelect?: (date: Date | null) => void
   onSearchChange?: (query: string) => void
+  onShowSummaryHistory?: () => void
 }
 
 export function Sidebar({
@@ -38,6 +39,7 @@ export function Sidebar({
   onTagsChange,  // 解构新的回调
   onDateSelect,
   onSearchChange,
+  onShowSummaryHistory,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery)
 
@@ -88,6 +90,18 @@ export function Sidebar({
             </button>
           )}
         </div>
+      </div>
+
+      {/* 总结历史按钮 */}
+      <div className="p-4 border-b border-border">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={onShowSummaryHistory}
+        >
+          <History className="h-4 w-4 mr-2" />
+          总结历史
+        </Button>
       </div>
 
       {/* 活跃度日历 */}
