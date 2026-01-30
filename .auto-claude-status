@@ -3,7 +3,7 @@
   "spec": "021-advanced-tag-management-rename-and-merge",
   "state": "building",
   "subtasks": {
-    "completed": 6,
+    "completed": 7,
     "total": 9,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 11,
+    "number": 12,
     "started_at": "2026-01-31T00:13:52.623264"
   },
-  "last_update": "2026-01-31T02:31:13.914125"
+  "last_update": "2026-01-31T02:35:43.813656"
 }
