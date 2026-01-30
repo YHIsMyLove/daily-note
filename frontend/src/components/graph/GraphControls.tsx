@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Input } from '../ui/input'
-import { Filter, Calendar, Tag, X, LayoutGrid, RefreshCw } from 'lucide-react'
+import { Filter, Calendar, Tag, X, LayoutGrid, RefreshCw, Download } from 'lucide-react'
 import { Category, Tag as TagType, GraphFilters } from '@daily-note/shared'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +21,7 @@ interface GraphControlsProps {
   onFiltersChange: (filters: GraphFilters) => void
   onLayoutChange: (layout: GraphLayout) => void
   onRefresh?: () => void
+  onExport?: (format: 'png' | 'svg') => void
   isLoading?: boolean
 }
 
@@ -31,6 +32,7 @@ export function GraphControls({
   onFiltersChange,
   onLayoutChange,
   onRefresh,
+  onExport,
   isLoading = false,
 }: GraphControlsProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(filters.categories || [])
@@ -104,6 +106,15 @@ export function GraphControls({
   }
 
   /**
+   * 导出图谱
+   */
+  const handleExport = (format: 'png' | 'svg') => {
+    if (onExport) {
+      onExport(format)
+    }
+  }
+
+  /**
    * 检查是否有激活的筛选
    */
   const hasFilters = selectedCategories.length > 0 || selectedTags.length > 0 || dateFrom || dateTo
@@ -146,6 +157,32 @@ export function GraphControls({
               <X className="h-3 w-3 mr-1" />
               清除筛选
             </Button>
+          )}
+          {onExport && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('png')}
+                disabled={isLoading}
+                className="h-8"
+                title="导出为 PNG 图片"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                PNG
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('svg')}
+                disabled={isLoading}
+                className="h-8"
+                title="导出为 SVG 矢量图"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                SVG
+              </Button>
+            </>
           )}
           {onRefresh && (
             <Button

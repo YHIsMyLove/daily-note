@@ -4,7 +4,7 @@
  * 知识图谱组件
  * 使用 vis-network 展示笔记关联关系
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import { Network } from 'vis-network/standalone'
 import { DataSet } from 'vis-data/peer'
 import { useQuery } from '@tanstack/react-query'
@@ -20,18 +20,89 @@ import { graphApi, notesApi } from '@/lib/api'
 import { GraphData, GraphNode, GraphEdge, GraphFilters, NoteBlock } from '@daily-note/shared'
 import { formatRelativeTime } from '@/lib/utils'
 
+export interface KnowledgeGraphRef {
+  exportAsPNG: () => void
+  exportAsSVG: () => void
+}
+
 interface KnowledgeGraphProps {
   filters?: GraphFilters
   onNodeClick?: (node: GraphNode) => void
   className?: string
 }
 
-export function KnowledgeGraph({ filters, onNodeClick, className = '' }: KnowledgeGraphProps) {
+export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>(
+  ({ filters, onNodeClick, className = '' }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const networkRef = useRef<Network | null>(null)
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+
+  /**
+   * 导出为 PNG
+   */
+  const exportAsPNG = () => {
+    if (!networkRef.current) return
+
+    const canvas = networkRef.current.canvas?.body?.container?.querySelector('canvas')
+    if (!canvas) return
+
+    try {
+      // 创建下载链接
+      const dataUrl = canvas.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.download = `knowledge-graph-${Date.now()}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (error) {
+      console.error('Failed to export graph as PNG:', error)
+    }
+  }
+
+  /**
+   * 导出为 SVG
+   * 注意：vis-network 基于 canvas，这里使用 SVG image 包装 PNG 导出
+   */
+  const exportAsSVG = () => {
+    if (!networkRef.current) return
+
+    const canvas = networkRef.current.canvas?.body?.container?.querySelector('canvas')
+    if (!canvas) return
+
+    try {
+      // 获取 canvas 数据
+      const dataUrl = canvas.toDataURL('image/png')
+      const width = canvas.width
+      const height = canvas.height
+
+      // 创建 SVG 内容
+      const svgContent = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+          <image href="${dataUrl}" width="${width}" height="${height}" />
+        </svg>
+      `
+
+      // 创建 Blob 并下载
+      const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `knowledge-graph-${Date.now()}.svg`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to export graph as SVG:', error)
+    }
+  }
+
+  /**
+   * 暴露导出方法给父组件
+   */
+  useImperativeHandle(ref, () => ({
+    exportAsPNG,
+    exportAsSVG,
+  }))
 
   /**
    * 获取选中笔记的完整数据
@@ -450,4 +521,8 @@ export function KnowledgeGraph({ filters, onNodeClick, className = '' }: Knowled
       </Sheet>
     </>
   )
-}
+  }
+)
+
+KnowledgeGraph.displayName = 'KnowledgeGraph'
+
