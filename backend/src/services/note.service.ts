@@ -92,6 +92,8 @@ export class NoteService {
    */
   async listNotes(options: {
     date?: Date
+    dateFrom?: Date
+    dateTo?: Date
     category?: string
     tag?: string          // 保留向后兼容
     tags?: string[]       // 新增多标签支持
@@ -100,7 +102,7 @@ export class NoteService {
     includeDeleted?: boolean
     dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
   } = {}): Promise<{ notes: NoteBlock[]; total: number }> {
-    const { date, category, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both' } = options
+    const { date, dateFrom, dateTo, category, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both' } = options
 
     // 统一处理标签参数（优先使用 tags，兼容 tag）
     const tagFilters = tags || (tag ? [tag] : undefined)
@@ -130,25 +132,65 @@ export class NoteService {
 
     const where: any = {}
 
-    if (date) {
-      const startOfDay = new Date(date)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(date)
-      endOfDay.setHours(23, 59, 59, 999)
+    // 确定日期范围
+    let startDate: Date | undefined
+    let endDate: Date | undefined
 
+    if (date) {
+      // 单个日期：转换为当天的范围
+      startDate = new Date(date)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(date)
+      endDate.setHours(23, 59, 59, 999)
+    } else if (dateFrom || dateTo) {
+      // 日期范围
+      if (dateFrom) {
+        startDate = new Date(dateFrom)
+        startDate.setHours(0, 0, 0, 0)
+      }
+      if (dateTo) {
+        endDate = new Date(dateTo)
+        endDate.setHours(23, 59, 59, 999)
+      }
+    }
+
+    if (startDate || endDate) {
       const mode = dateFilterMode || 'both'
 
       if (mode === 'createdAt') {
-        where.createdAt = { gte: startOfDay, lte: endOfDay }
+        if (startDate && endDate) {
+          where.createdAt = { gte: startDate, lte: endDate }
+        } else if (startDate) {
+          where.createdAt = { gte: startDate }
+        } else if (endDate) {
+          where.createdAt = { lte: endDate }
+        }
         Object.assign(where, baseConditions)
       } else if (mode === 'updatedAt') {
-        where.updatedAt = { gte: startOfDay, lte: endOfDay }
+        if (startDate && endDate) {
+          where.updatedAt = { gte: startDate, lte: endDate }
+        } else if (startDate) {
+          where.updatedAt = { gte: startDate }
+        } else if (endDate) {
+          where.updatedAt = { lte: endDate }
+        }
         Object.assign(where, baseConditions)
       } else {
         // both 模式 - OR 分支包含所有其他条件
         // 手动构建两个完整的条件对象
-        const createdAtCondition: any = { createdAt: { gte: startOfDay, lte: endOfDay } }
-        const updatedAtCondition: any = { updatedAt: { gte: startOfDay, lte: endOfDay } }
+        const createdAtCondition: any = {}
+        const updatedAtCondition: any = {}
+
+        if (startDate && endDate) {
+          createdAtCondition.createdAt = { gte: startDate, lte: endDate }
+          updatedAtCondition.updatedAt = { gte: startDate, lte: endDate }
+        } else if (startDate) {
+          createdAtCondition.createdAt = { gte: startDate }
+          updatedAtCondition.updatedAt = { gte: startDate }
+        } else if (endDate) {
+          createdAtCondition.createdAt = { lte: endDate }
+          updatedAtCondition.updatedAt = { lte: endDate }
+        }
 
         // 复制基础条件到两个分支
         if (baseConditions.deletedAt !== undefined) {
@@ -196,14 +238,9 @@ export class NoteService {
     const notesWithMatchSource = notes.map((n) => {
       let source: 'createdAt' | 'updatedAt' | undefined
 
-      if (date) {
-        const startOfDay = new Date(date)
-        startOfDay.setHours(0, 0, 0, 0)
-        const endOfDay = new Date(date)
-        endOfDay.setHours(23, 59, 59, 999)
-
-        const createdInRange = n.createdAt >= startOfDay && n.createdAt <= endOfDay
-        const updatedInRange = n.updatedAt >= startOfDay && n.updatedAt <= endOfDay
+      if (startDate || endDate) {
+        const createdInRange = (!startDate || n.createdAt >= startDate) && (!endDate || n.createdAt <= endDate)
+        const updatedInRange = (!startDate || n.updatedAt >= startDate) && (!endDate || n.updatedAt <= endDate)
 
         if (createdInRange && !updatedInRange) {
           source = 'createdAt'

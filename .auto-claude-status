@@ -1,15 +1,15 @@
 {
   "active": true,
   "spec": "020-date-range-filter-for-notes-list",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 2,
+    "total": 8,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Backend Types Extension",
+    "current": "Backend Service Logic",
     "id": null,
     "total": 1
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 4,
     "started_at": "2026-01-31T00:13:53.633443"
   },
-  "last_update": "2026-01-31T00:19:31.853633"
+  "last_update": "2026-01-31T00:26:00.920201"
 }
