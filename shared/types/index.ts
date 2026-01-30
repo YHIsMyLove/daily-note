@@ -475,3 +475,62 @@ export type {
   TodoStats,
 } from './todo'
 
+// ===== 知识图谱相关类型 =====
+
+/**
+ * 图谱节点
+ */
+export interface GraphNode {
+  id: string
+  label?: string
+  content: string
+  category?: string
+  tags?: string[]
+  sentiment?: 'positive' | 'neutral' | 'negative'
+  importance?: number
+  date: string
+  size?: number
+  color?: string
+}
+
+/**
+ * 图谱边
+ */
+export interface GraphEdge {
+  id: string
+  from: string
+  to: string
+  similarity?: number
+  weight?: number
+  reason?: string
+  type?: 'similarity' | 'reference' | 'tag'
+}
+
+/**
+ * 图谱数据
+ */
+export interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  total: number
+  stats?: {
+    nodeCount: number
+    edgeCount: number
+    categoryDistribution: Category[]
+  }
+}
+
+/**
+ * 图谱过滤器
+ */
+export interface GraphFilters {
+  categories?: string[]
+  tags?: string[]
+  dateFrom?: string
+  dateTo?: string
+  minSimilarity?: number
+  minImportance?: number
+  limit?: number
+  sentiment?: 'positive' | 'neutral' | 'negative'
+}
+

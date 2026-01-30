@@ -37,6 +37,8 @@ import {
   TodoSortOrder,
   TodoListQuery,
   TodoStats,
+  GraphData,
+  GraphFilters,
 } from '@daily-note/shared'
 
 // API 响应类型（后端返回格式）
@@ -416,5 +418,13 @@ export const todosApi = {
     apiClient.get(`/api/todos/note/${noteId}`),
   permanentDelete: (id: string): ApiResponseType<{ message: string }> =>
     apiClient.delete(`/api/todos/${id}/permanent`),
+}
+
+/**
+ * 知识图谱 API
+ */
+export const graphApi = {
+  get: (filters?: GraphFilters): ApiResponseType<GraphData> =>
+    apiClient.get('/api/graph', { params: filters }),
 }
 
