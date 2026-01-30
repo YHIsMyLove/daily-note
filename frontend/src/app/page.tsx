@@ -36,6 +36,7 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>()
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedSentiment, setSelectedSentiment] = useState<'positive' | 'neutral' | 'negative'>()
   const [searchQuery, setSearchQuery] = useState('')
 
   // 任务状态面板
@@ -101,6 +102,7 @@ export default function HomePage() {
         category?: string
         tags?: string[]  // 改为数组
         date?: Date
+        sentiment?: 'positive' | 'neutral' | 'negative'
         pageSize: number
         dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
       } = {
@@ -118,6 +120,10 @@ export default function HomePage() {
 
       if (selectedDate) {
         params.date = selectedDate
+      }
+
+      if (selectedSentiment) {
+        params.sentiment = selectedSentiment
       }
 
       // 加载笔记列表
@@ -251,7 +257,7 @@ export default function HomePage() {
     } else {
       loadData()
     }
-  }, [selectedCategory, selectedTags, selectedDate])
+  }, [selectedCategory, selectedTags, selectedDate, selectedSentiment])
 
   // 监听搜索查询变化
   useEffect(() => {
