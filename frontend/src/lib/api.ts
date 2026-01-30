@@ -20,6 +20,8 @@ import {
   Summary,
   SummaryComparison,
   SummaryHistoryFilters,
+  GraphData,
+  GraphFilters,
 } from '@daily-note/shared'
 
 // API 响应类型（后端返回格式）
@@ -296,5 +298,13 @@ export const summariesApi = {
     apiClient.get(`/api/summaries/${id}/compare`, { params: { compareId } }),
   deleteRecord: (id: string): ApiResponseType<{ message: string }> =>
     apiClient.delete(`/api/summaries/record/${id}`),
+}
+
+/**
+ * 知识图谱 API
+ */
+export const graphApi = {
+  get: (filters?: GraphFilters): ApiResponseType<GraphData> =>
+    apiClient.get('/api/graph', { params: filters }),
 }
 
