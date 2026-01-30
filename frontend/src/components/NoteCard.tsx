@@ -10,6 +10,7 @@ import { Card } from './ui/card'
 import { Badge } from './ui/badge'
 import { formatDateTime, formatRelativeTime } from '@/lib/utils'
 import { Link2, Star, MoreVertical, Edit2, Sparkles, Trash2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,7 +81,7 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
       onTaskRefresh?.()
     } catch (error) {
       console.error('Failed to update note:', error)
-      alert('保存失败，请稍后重试')
+      toast.error('保存失败，请稍后重试')
     } finally {
       setLoading(false)
     }
