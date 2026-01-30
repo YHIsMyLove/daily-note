@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+dist
+gen
+target
+*.db
+
+# Auto Claude data directory
+.auto-claude/
+.claude/settings.local.json
