@@ -54,6 +54,8 @@ export async function notesRoutes(fastify: FastifyInstance) {
         category: query.category,
         tags,  // 传递标签数组
         dateFilterMode: query.dateFilterMode || 'both',
+        orderBy: query.orderBy,
+        order: query.order || 'desc',
         page: query.page ? parseInt(query.page) : 1,
         pageSize: query.pageSize ? parseInt(query.pageSize) : 50,
       })
