@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit, RotateCcw, Trash2 } from 'lucide-react'
 import { PromptEditorSheet } from './PromptEditorSheet'
+import { toast } from 'sonner'
 
 interface PromptListPanelProps {
   onClose: () => void
@@ -29,7 +30,7 @@ export function PromptListPanel({ onClose }: PromptListPanelProps) {
         refetch()
       } catch (error) {
         console.error('Failed to reset prompt:', error)
-        alert('恢复失败，请稍后重试')
+        toast.error('恢复失败，请稍后重试')
       }
     }
   }
@@ -41,7 +42,7 @@ export function PromptListPanel({ onClose }: PromptListPanelProps) {
         refetch()
       } catch (error) {
         console.error('Failed to delete prompt:', error)
-        alert('删除失败，请稍后重试')
+        toast.error('删除失败，请稍后重试')
       }
     }
   }
