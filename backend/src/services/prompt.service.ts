@@ -3,7 +3,7 @@
  * 负责管理提示词模板的 CRUD 和变量替换
  */
 import { prisma } from '../database/prisma'
-import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT } from '../llm/prompts'
+import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT, EXTRACT_TASKS_PROMPT } from '../llm/prompts'
 import { PromptTemplate, PromptTemplateDetail, PromptVariable } from '@daily-note/shared'
 
 /**
@@ -293,6 +293,61 @@ const DEFAULT_TEMPLATES: Array<{
       },
     ],
   },
+  {
+    key: 'extract_tasks',
+    name: '任务提取',
+    description: '从笔记内容中提取可执行的任务',
+    systemPart: `请严格按照以下 JSON 格式返回，不要包含任何其他文本：
+{
+  "tasks": [
+    {
+      "title": "任务标题（简短明确）",
+      "description": "任务详细描述（可选）",
+      "priority": "high|medium|low",
+      "dueDate": "ISO日期字符串或null（如：2024-01-15）",
+      "actionable": true
+    }
+  ]
+}`,
+    userPart: `你是任务提取助手，请从以下笔记内容中提取可执行的任务。
+
+笔记内容：
+{content}
+
+任务提取规则：
+- 只提取明确的可执行任务（如："完成报告"、"联系客户"、"购买物品"）
+- 忽略纯描述性内容、感受、想法记录
+- 任务标题应简短明确，使用动词开头
+- 优先级判断：
+  * high：有明确截止日期、重要紧急、影响重大
+  * medium：需要完成但不紧急、常规任务
+  * low：可选事项、参考性任务
+- 截止日期：从笔记内容中提取明确的时间信息（如"明天"、"下周"、"12月15日"），如无明确时间则返回null
+- 如果笔记中没有可执行任务，返回空数组：{"tasks": []}
+
+示例：
+笔记："明天下午3点前完成周报，记得包含本周的项目进度和下周计划。"
+提取结果：
+{
+  "tasks": [
+    {
+      "title": "完成周报",
+      "description": "包含本周的项目进度和下周计划",
+      "priority": "high",
+      "dueDate": "2024-01-16",
+      "actionable": true
+    }
+  ]
+}`,
+    variables: [
+      {
+        name: 'content',
+        description: '笔记内容',
+        required: true,
+        placeholder: '{content}',
+      },
+    ],
+  },
 ]
 
 export class PromptService {
@@ -563,6 +618,9 @@ export class PromptService {
         break
       case 'generate_daily_summary':
         prompt = GENERATE_DAILY_SUMMARY_PROMPT
+        break
+      case 'extract_tasks':
+        prompt = EXTRACT_TASKS_PROMPT
         break
       default:
         prompt = CLASSIFY_NOTE_PROMPT

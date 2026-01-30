@@ -3,7 +3,7 @@
  * 负责调用 Anthropic Claude API 进行笔记分类、摘要等操作
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT } from './prompts'
+import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT, EXTRACT_TASKS_PROMPT } from './prompts'
 import { getApiKey, getBaseUrl, getApiTimeout, getMaxRetryAttempts, getRetryInitialDelay } from '../config/claude-config'
 import { promptService } from '../services/prompt.service'
 import { retryWithBackoff, isNetworkError, isTimeoutError, isHttpStatusCodeRetryable } from '../utils/retry'
@@ -51,6 +51,22 @@ export interface HierarchicalSummaryInput {
   subSummaries: any[]
   timeRange: string
   level: 'week' | 'month' | 'year'
+}
+
+// 任务提取结果
+export interface ExtractedTask {
+  title: string
+  description?: string
+  priority: 'high' | 'medium' | 'low'
+  dueDate: string | null
+  actionable: boolean
+}
+
+// 任务提取响应
+export interface TaskExtractionResult {
+  tasks: ExtractedTask[]
+  /** 是否为降级结果（API 失败时返回的默认结果） */
+  isFallback?: boolean
 }
 
 export class ClaudeService {
@@ -734,6 +750,90 @@ ${(summary.summary?.pendingTasks || []).map((t: string) => `- ${t}`).join('\n') 
 **感悟洞察：**
 ${(summary.summary?.insights || []).map((i: string) => `- ${i}`).join('\n') || '无'}
   `.trim()
+  }
+
+  /**
+   * 从笔记中提取任务
+   */
+  async extractTasks(content: string): Promise<TaskExtractionResult> {
+    const context = 'extractTasks'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
+
+    try {
+      return await retryWithBackoff(
+        async () => {
+          const prompt = EXTRACT_TASKS_PROMPT.replace('{content}', content)
+
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
+
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
+
+          const result = JSON.parse(jsonMatch[0]) as TaskExtractionResult
+
+          // 验证返回结果
+          if (!result.tasks || !Array.isArray(result.tasks)) {
+            throw new Error('Invalid task extraction result from Claude')
+          }
+
+          return { ...result, isFallback: false }
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                contentLength: content.length,
+                contentWordCount: content.split(/\s+/).length,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 2048,
+              }
+            )
+          }
+        }
+      )
+    } catch (error) {
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          contentLength: content.length,
+          contentWordCount: content.split(/\s+/).length,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 2048,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
+      // 返回空任务列表
+      return {
+        tasks: [],
+        isFallback: true,
+      }
+    }
   }
 
   /**
