@@ -13,9 +13,10 @@ import { ConfirmDialogProvider, confirmDialog } from '@/components/ConfirmDialog
 import { SettingsSidebar } from '@/components/SettingsSidebar'
 import { SummaryMenu } from '@/components/SummaryMenu'
 import { SummaryResultSheet } from '@/components/SummaryResultSheet'
+import { SummaryHistory } from '@/components/SummaryHistory'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
-import { RefreshCw, ListChecks, Wifi, WifiOff, Settings } from 'lucide-react'
+import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
@@ -49,6 +50,9 @@ export default function HomePage() {
   // 总结分析面板
   const [summarySheetOpen, setSummarySheetOpen] = useState(false)
   const [currentSummaryTaskId, setCurrentSummaryTaskId] = useState<string | null>(null)
+
+  // 总结历史面板
+  const [summaryHistorySheetOpen, setSummaryHistorySheetOpen] = useState(false)
 
   // SSE 连接
   const { connectionState, isConnected } = useSSE('http://localhost:3001/api/sse', {
@@ -274,6 +278,15 @@ export default function HomePage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setSummaryHistorySheetOpen(true)}
+            disabled={loading}
+          >
+            <History className="h-4 w-4 mr-2" />
+            历史记录
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setTaskSheetOpen(true)}
             className="relative"
           >
@@ -378,6 +391,12 @@ export default function HomePage() {
         open={summarySheetOpen}
         onOpenChange={setSummarySheetOpen}
         taskId={currentSummaryTaskId}
+      />
+
+      {/* 总结历史面板 */}
+      <SummaryHistory
+        open={summaryHistorySheetOpen}
+        onOpenChange={setSummaryHistorySheetOpen}
       />
 
       {/* 确认对话框提供者 */}
