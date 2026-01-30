@@ -16,6 +16,7 @@ import { summariesApi } from '@/lib/api'
 import { Summary, SummaryHistoryFilters } from '@daily-note/shared'
 import { SummaryResultSheet } from './SummaryResultSheet'
 import { SummaryComparison } from './SummaryComparison'
+import { toast } from 'sonner'
 
 interface SummaryHistoryProps {
   open: boolean
@@ -150,7 +151,7 @@ export function SummaryHistory({ open, onOpenChange }: SummaryHistoryProps) {
       loadSummaries()
     } catch (err) {
       console.error('Failed to delete summary:', err)
-      alert('删除失败')
+      toast.error('删除失败')
     }
   }
 
@@ -170,7 +171,7 @@ export function SummaryHistory({ open, onOpenChange }: SummaryHistoryProps) {
       setSelectedForCompare(selectedForCompare.filter(sid => sid !== id))
     } else {
       if (selectedForCompare.length >= 2) {
-        alert('最多只能选择2个总结进行对比')
+        toast.error('最多只能选择2个总结进行对比')
         return
       }
       setSelectedForCompare([...selectedForCompare, id])
@@ -182,7 +183,7 @@ export function SummaryHistory({ open, onOpenChange }: SummaryHistoryProps) {
    */
   const handleCompare = () => {
     if (selectedForCompare.length !== 2) {
-      alert('请选择2个总结进行对比')
+      toast.error('请选择2个总结进行对比')
       return
     }
     // 对比功能将在 SummaryComparison 组件中实现
