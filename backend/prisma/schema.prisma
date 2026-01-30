@@ -92,6 +92,9 @@ model ClaudeTask {
   result      String?  // JSON 格式结果
   startedAt   DateTime?
   completedAt DateTime?
+  retryCount  Int      @default(0)
+  lastRetryAt DateTime?
+  nextRetryAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
