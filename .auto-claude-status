@@ -3,7 +3,7 @@
   "spec": "010-ai",
   "state": "building",
   "subtasks": {
-    "completed": 4,
+    "completed": 6,
     "total": 19,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 5,
+    "number": 7,
     "started_at": "2026-01-30T21:27:01.208942"
   },
-  "last_update": "2026-01-30T21:52:27.754925"
+  "last_update": "2026-01-30T22:01:13.053701"
 }
