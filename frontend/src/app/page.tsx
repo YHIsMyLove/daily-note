@@ -15,7 +15,7 @@ import { SummaryMenu } from '@/components/SummaryMenu'
 import { SummaryResultSheet } from '@/components/SummaryResultSheet'
 import { SummaryHistory } from '@/components/SummaryHistory'
 import { KnowledgeGraph } from '@/components/KnowledgeGraph'
-import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
+import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload, SortField, SortOrder } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
 import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,37 @@ export default function HomePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // 排序状态
+  const [orderBy, setOrderBy] = useState<SortField>(() => {
+    // 从 localStorage 读取保存的排序字段
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('daily-note-order-by')
+      return (saved === 'date' || saved === 'createdAt' || saved === 'updatedAt' || saved === 'importance' || saved === 'category' || saved === 'sentiment') ? saved : 'updatedAt'
+    }
+    return 'updatedAt'
+  })
+  const [order, setOrder] = useState<SortOrder>(() => {
+    // 从 localStorage 读取保存的排序方向
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('daily-note-order')
+      return (saved === 'asc' || saved === 'desc') ? saved : 'desc'
+    }
+    return 'desc'
+  })
+
+  // 保存排序状态到 localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('daily-note-order-by', orderBy)
+    }
+  }, [orderBy])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('daily-note-order', order)
+    }
+  }, [order])
 
   // 任务状态面板
   const [taskSheetOpen, setTaskSheetOpen] = useState(false)
@@ -103,9 +134,13 @@ export default function HomePage() {
         date?: Date
         pageSize: number
         dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
+        orderBy?: SortField
+        order?: SortOrder
       } = {
         pageSize: 100,
         dateFilterMode: 'both',  // 默认匹配创建和更新时间
+        orderBy,
+        order,
       }
 
       if (selectedCategory) {
@@ -251,7 +286,7 @@ export default function HomePage() {
     } else {
       loadData()
     }
-  }, [selectedCategory, selectedTags, selectedDate])
+  }, [selectedCategory, selectedTags, selectedDate, orderBy, order])
 
   // 监听搜索查询变化
   useEffect(() => {
@@ -364,10 +399,14 @@ export default function HomePage() {
             selectedTags={selectedTags}
             selectedDate={selectedDate}
             searchQuery={searchQuery}
+            orderBy={orderBy}
+            order={order}
             onCategoryChange={setSelectedCategory}
             onTagsChange={setSelectedTags}
             onDateSelect={setSelectedDate}
             onSearchChange={setSearchQuery}
+            onOrderByChange={setOrderBy}
+            onOrderChange={setOrder}
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
           />
         </aside>

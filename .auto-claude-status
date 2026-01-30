@@ -3,7 +3,7 @@
   "spec": "017-sort-options-for-notes-list",
   "state": "building",
   "subtasks": {
-    "completed": 3,
+    "completed": 5,
     "total": 6,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 5,
-    "started_at": "2026-01-31T00:13:53.463506"
+    "number": 6,
+    "started_at": "2026-01-31T00:10:04.568668"
   },
-  "last_update": "2026-01-31T00:23:17.782250"
+  "last_update": "2026-01-31T00:27:26.187505"
 }
