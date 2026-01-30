@@ -1,11 +1,11 @@
 {
   "active": true,
   "spec": "013-fix-activitycalendar-touch-target-size-for-mobile-",
-  "state": "planning",
+  "state": "completed",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
-    "in_progress": 1,
+    "completed": 3,
+    "total": 3,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 5,
     "started_at": "2026-01-31T00:09:24.618267"
   },
-  "last_update": "2026-01-31T00:15:07.151558"
+  "last_update": "2026-01-31T00:30:00.000000"
 }
