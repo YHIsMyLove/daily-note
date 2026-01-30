@@ -3,23 +3,23 @@
   "spec": "009-note-skill",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 3,
     "total": 22,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Skill Setup and Infrastructure",
+    "current": "Core Note Operations Tools",
     "id": null,
-    "total": 3
+    "total": 7
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 4,
     "started_at": "2026-01-30T21:25:22.602011"
   },
-  "last_update": "2026-01-30T21:28:59.705693"
+  "last_update": "2026-01-30T21:31:23.258273"
 }
