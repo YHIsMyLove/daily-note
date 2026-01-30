@@ -9,12 +9,13 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Card } from '../ui/card'
-import { Send, X, Folder, Tag } from 'lucide-react'
+import { Send, X, Folder, Tag, Eye, EyeOff } from 'lucide-react'
 import { CategorySelector } from './CategorySelector'
 import { TagSelector } from './TagSelector'
 import { ImportanceStars } from './ImportanceStars'
 import { UpdateNoteRequest } from '@daily-note/shared'
 import { Loader2 } from 'lucide-react'
+import { MarkdownViewer } from '../MarkdownViewer'
 
 export interface NoteEditorData {
   content: string
@@ -71,7 +72,7 @@ export function NoteEditor({
   const [category, setCategory] = useState(initialData?.category || '')
   const [tags, setTags] = useState<string[]>(initialData?.tags || [])
   const [importance, setImportance] = useState(initialData?.importance || 0)
-
+  const [showPreview, setShowPreview] = useState(false)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -150,6 +151,19 @@ export function NoteEditor({
           rows={4}
         />
 
+        {/* Markdown 预览区域 */}
+        {showPreview && content.trim() && (
+          <div className="border-t border-border/50 pt-2">
+            <div className="text-xs text-text-muted mb-1">预览</div>
+            <div className="bg-slate-900/30 rounded p-2 max-h-60 overflow-y-auto">
+              <MarkdownViewer
+                content={content}
+                className="text-sm"
+              />
+            </div>
+          </div>
+        )}
+
         {/* 选项区域 - 单行紧凑布局 */}
           <div className="flex items-center gap-4 pt-2 border-t border-border/50 flex-wrap">
             {/* 分类选择 - 紧凑版 */}
@@ -201,6 +215,24 @@ export function NoteEditor({
         {/* 操作按钮区 - 紧凑布局 */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Markdown 预览切换按钮 */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPreview(!showPreview)}
+              disabled={disabled || loading}
+              className="h-6 px-2 text-xs text-text-muted hover:text-text-primary"
+              title={showPreview ? '隐藏预览' : '显示预览'}
+            >
+              {showPreview ? (
+                <EyeOff className="h-3.5 w-3.5 mr-1" />
+              ) : (
+                <Eye className="h-3.5 w-3.5 mr-1" />
+              )}
+              预览
+            </Button>
+
             {/* 字数统计提示 */}
             <span className="text-xs text-text-muted">
               {content.length} 字 · Ctrl+Enter 提交
