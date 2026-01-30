@@ -83,15 +83,15 @@ model NoteRelation {
 // Claude 任务队列
 model ClaudeTask {
   id          String   @id @default(uuid())
-  type        String   // 'classify_note', 'analyze_trends', etc.
+  type        String   // 'classify_note', 'analyze_trends', 'extract_todo_tasks', 'auto_complete_todo', etc.
   noteId      String?  // 关联笔记ID（如适用）
   payload     String   // JSON 格式任务数据
-  status      String   @default("PENDING") // 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  status      String   @default("PENDING") // 'PENDING' | 'NEEDS_REVIEW' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   priority    Int      @default(0)
   error       String?
   result      String?  // JSON 格式结果
   startedAt   DateTime?
-  completedAt DateTime?
+  completedAt DateTime? // 任务队列处理完成时间（区别于 Todo 的完成时间）
   retryCount  Int      @default(0)
   lastRetryAt DateTime?
   nextRetryAt DateTime?
@@ -100,9 +100,23 @@ model ClaudeTask {
 
   note Note? @relation(fields: [noteId], references: [id], onDelete: SetNull)
 
+  // Todo 特定字段（当 type 为 todo 相关时使用）
+  title                  String?  // Todo 标题
+  description            String?  // Todo 描述
+  dueDate                DateTime? // Todo 截止日期
+  todoCompletedAt        DateTime? // Todo 完成时间（用户完成或 AI 自动完成）
+  isAiGenerated          Boolean  @default(false) // 是否由 AI 提取的 Todo
+  autoCompletionEnabled  Boolean  @default(false) // 是否启用 AI 自动完成
+  autoCompletionTaskId   String?  // 自动完成任务的 ClaudeTask ID（指向另一个 ClaudeTask）
+  autoCompletionError    String?  // 自动完成失败时的错误信息
+  todoMetadata           String?  // JSON：Todo 元数据（estimatedTime, complexity, tags）
+
   @@index([status])
   @@index([noteId])
   @@index([type])
+  @@index([isAiGenerated])
+  @@index([autoCompletionEnabled])
+  @@index([dueDate])
 }
 
 // 提示词模板
