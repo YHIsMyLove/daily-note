@@ -3,6 +3,7 @@
  * 处理 Todo 的 CRUD 操作、筛选、统计等业务逻辑
  */
 import { prisma } from '../database/prisma'
+import { queueManager } from '../queue/queue-manager'
 import {
   Todo,
   CreateTodoRequest,
@@ -383,7 +384,58 @@ export class TodoService {
       },
     })
 
+    // 触发自动完成检查
+    await this.triggerAutoCompletion(id)
+
     return this.mapToTodo(todo)
+  }
+
+  /**
+   * 触发 Todo 的自动完成检查
+   * 将自动完成任务加入队列，由后台处理
+   */
+  async triggerAutoCompletion(todoId: string): Promise<void> {
+    try {
+      // 获取 Todo 以验证存在性并检查是否启用自动完成
+      const todo = await prisma.claudeTask.findFirst({
+        where: { id: todoId, type: 'todo' },
+      })
+
+      if (!todo) {
+        throw new Error(`Todo not found: ${todoId}`)
+      }
+
+      // 只有启用了自动完成的任务才会触发
+      if (!todo.autoCompletionEnabled) {
+        return
+      }
+
+      // 检查是否已经在处理中
+      if (todo.status === 'COMPLETED' || todo.status === 'CANCELLED') {
+        return
+      }
+
+      // 避免重复入队：如果已有待处理的自动完成任务，则不再创建
+      const existingTask = await prisma.claudeTask.findFirst({
+        where: {
+          type: 'auto_complete_todo',
+          noteId: todoId,
+          status: { in: ['PENDING', 'RUNNING'] },
+        },
+      })
+
+      if (existingTask) {
+        return
+      }
+
+      // 将自动完成任务加入队列（优先级较高，因为这是用户主动触发的）
+      await queueManager.enqueue('auto_complete_todo', { todoId }, todoId, 5)
+
+      console.log(`[TodoService] Auto-completion triggered for todo: ${todoId}`)
+    } catch (error) {
+      console.error(`[TodoService] Error triggering auto-completion for todo ${todoId}:`, error)
+      throw error
+    }
   }
 
   /**
