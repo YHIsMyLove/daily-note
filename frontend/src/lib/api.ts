@@ -165,6 +165,8 @@ export const notesApi = {
     apiClient.post('/api/notes', { content, date, ...options }),
   list: (params?: {
     date?: Date
+    dateFrom?: Date
+    dateTo?: Date
     category?: string
     tags?: string[]  // 改为数组
     page?: number
