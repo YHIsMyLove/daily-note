@@ -6,13 +6,15 @@
  * - GET /api/summaries - 获取分析任务列表
  * - GET /api/summaries/:id - 获取单个分析结果
  * - DELETE /api/summaries/:id - 取消/删除分析任务
- * - GET /api/summaries/history - 获取总结历史列表（新增）
- * - GET /api/summaries/:id/compare - 对比两个总结（新增）
+ * - GET /api/summaries/history - 获取总结历史列表
+ * - GET /api/summaries/:id/compare - 对比两个总结
+ * - GET /api/summaries/unsummarized - 检测未总结的日期
  */
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../../database/prisma'
 import { queueManager } from '../../queue/queue-manager'
 import { summaryPersistenceService } from '../../services/summary-persistence.service'
+import { autoSummaryService } from '../../services/auto-summary.service'
 import { SummaryAnalyzerPayload } from '@daily-note/shared'
 
 export default async function summariesRoutes(fastify: FastifyInstance) {
@@ -96,6 +98,42 @@ export default async function summariesRoutes(fastify: FastifyInstance) {
         completedAt: t.completedAt,
       })),
     })
+  })
+
+  /**
+   * 检测未总结的日期
+   * @query days - 可选，向前查找的天数（默认 7）
+   */
+  fastify.get('/unsummarized', async (request, reply) => {
+    const { days = '7' } = request.query as {
+      days?: string
+    }
+
+    try {
+      const daysNum = parseInt(days, 10)
+      if (isNaN(daysNum) || daysNum < 1 || daysNum > 365) {
+        return reply.status(400).send({
+          success: false,
+          error: 'days 参数必须是 1-365 之间的整数',
+        })
+      }
+
+      const unsummarizedDates = await autoSummaryService.detectUnsummarizedDates(daysNum)
+
+      return reply.send({
+        success: true,
+        data: {
+          days: daysNum,
+          dates: unsummarizedDates,
+        },
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return reply.status(500).send({
+        success: false,
+        error: errorMessage,
+      })
+    }
   })
 
   /**
