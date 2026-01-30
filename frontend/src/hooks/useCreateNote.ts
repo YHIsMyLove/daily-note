@@ -39,9 +39,12 @@ export function useCreateNote() {
       // 保存之前的快照，用于错误时回滚
       const previousNotes = queryClient.getQueryData(['notes'])
 
+      // 创建临时 ID
+      const tempId = `temp-${Date.now()}`
+
       // 创建乐观笔记对象
       const optimisticNote: NoteBlock = {
-        id: `temp-${Date.now()}`, // 临时 ID
+        id: tempId, // 临时 ID
         content: variables.content,
         date: variables.date || new Date(),
         createdAt: new Date(),
@@ -70,8 +73,8 @@ export function useCreateNote() {
         }
       })
 
-      // 返回上下文，包含之前的快照和乐观笔记
-      return { previousNotes, optimisticNote }
+      // 返回上下文，包含之前的快照、乐观笔记和临时 ID
+      return { previousNotes, optimisticNote, tempId }
     },
 
     // 错误时回滚

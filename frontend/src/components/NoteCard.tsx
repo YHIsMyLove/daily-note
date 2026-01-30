@@ -31,6 +31,7 @@ interface NoteCardProps {
   onTaskRefresh?: () => void
   onRelatedNotesClick?: (note: NoteBlock) => void
   isEditing?: boolean
+  isSyncing?: boolean
   onEditStart?: (noteId: string) => void
   onEditEnd?: () => void
 }
@@ -42,7 +43,7 @@ const sentimentIcons: Record<string, string> = {
   negative: '😟',
 }
 
-export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, onTaskRefresh, onRelatedNotesClick, isEditing, onEditStart, onEditEnd }: NoteCardProps) {
+export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, onTaskRefresh, onRelatedNotesClick, isEditing, isSyncing, onEditStart, onEditEnd }: NoteCardProps) {
   const [loading, setLoading] = useState(false)
   const categoryColor = getCategoryColorClass(note.category || '其他')
 
@@ -116,11 +117,19 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
   // 浏览模式：渲染卡片内容
   return (
     <Card
-      className="hover:shadow-card-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group bg-background-card/80 backdrop-blur-sm shadow-card p-4 relative"
+      className={`hover:shadow-card-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group bg-background-card/80 backdrop-blur-sm shadow-card p-4 relative ${
+        isSyncing ? 'opacity-60' : ''
+      }`}
       onClick={onClick}
     >
       {/* 操作按钮 - 仅在 hover 时显示 */}
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        {/* 同步中指示器 */}
+        {isSyncing && (
+          <div className="absolute -top-1 -right-1 z-20">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          </div>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">

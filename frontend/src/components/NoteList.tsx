@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react'
 interface NoteListProps {
   notes: NoteBlock[]
   loading?: boolean
+  syncingNoteIds?: Set<string>
   onNoteClick?: (note: NoteBlock) => void
   onNoteAnalyze?: (noteId: string) => void
   onNoteDelete?: (note: NoteBlock) => void
@@ -24,6 +25,7 @@ interface NoteListProps {
 export function NoteList({
   notes,
   loading = false,
+  syncingNoteIds,
   onNoteClick,
   onNoteAnalyze,
   onNoteDelete,
@@ -76,6 +78,7 @@ export function NoteList({
             isEditing={editingNoteId === note.id}
             onEditStart={handleEditStart}
             onEditEnd={handleEditEnd}
+            isSyncing={syncingNoteIds?.has(note.id)}
           />
         ))}
       </div>

@@ -59,6 +59,9 @@ export default function HomePage() {
   // 使用 useDeleteNote hook 进行笔记删除（支持乐观更新）
   const deleteNoteMutation = useDeleteNote()
 
+  // 跟踪正在同步的笔记 ID（用于显示乐观更新指示器）
+  const [syncingNoteIds, setSyncingNoteIds] = useState<Set<string>>(new Set())
+
   // 搜索结果状态
   const [searchResults, setSearchResults] = useState<NoteBlock[] | null>(null)
   const [searchLoading, setSearchLoading] = useState(false)
@@ -158,6 +161,11 @@ export default function HomePage() {
 
   // 创建笔记
   const handleCreateNote = (data: { content: string; category?: string; tags?: string[]; importance?: number }) => {
+    const tempId = `temp-${Date.now()}`
+
+    // 标记为同步中
+    setSyncingNoteIds((prev) => new Set(prev).add(tempId))
+
     createNoteMutation.mutate(
       {
         content: data.content,
@@ -169,9 +177,23 @@ export default function HomePage() {
       {
         onSuccess: () => {
           toast.success('笔记创建成功')
+          // 移除同步中标记（会在 invalidateQueries 后被真实数据替换）
+          setTimeout(() => {
+            setSyncingNoteIds((prev) => {
+              const next = new Set(prev)
+              next.delete(tempId)
+              return next
+            })
+          }, 100)
         },
         onError: (error) => {
           console.error('Failed to create note:', error)
+          // 移除同步中标记
+          setSyncingNoteIds((prev) => {
+            const next = new Set(prev)
+            next.delete(tempId)
+            return next
+          })
           // 显示详细错误信息
           const errorMessage = axios.isAxiosError(error)
             ? error.response?.data?.error || error.message
@@ -233,12 +255,29 @@ export default function HomePage() {
     })
 
     if (confirmed) {
+      // 标记为同步中
+      setSyncingNoteIds((prev) => new Set(prev).add(note.id))
+
       deleteNoteMutation.mutate(note.id, {
         onSuccess: () => {
           toast.success('笔记已删除')
+          // 移除同步中标记（笔记已被删除，不再在列表中）
+          setTimeout(() => {
+            setSyncingNoteIds((prev) => {
+              const next = new Set(prev)
+              next.delete(note.id)
+              return next
+            })
+          }, 100)
         },
         onError: (error) => {
           console.error('Failed to delete note:', error)
+          // 移除同步中标记（删除失败，笔记会回滚到列表中）
+          setSyncingNoteIds((prev) => {
+            const next = new Set(prev)
+            next.delete(note.id)
+            return next
+          })
           // 显示详细错误信息
           const errorMessage = axios.isAxiosError(error)
             ? error.response?.data?.error || error.message
@@ -290,6 +329,16 @@ export default function HomePage() {
             )}
             <span>{isConnected ? '实时同步' : '已断开'}</span>
           </div>
+          {/* 乐观更新同步指示器 */}
+          {(createNoteMutation.isPending || deleteNoteMutation.isPending) && (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-xs bg-blue-500/10 text-blue-600"
+              title="正在同步到服务器..."
+            >
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>同步中</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <SummaryMenu
@@ -397,6 +446,7 @@ export default function HomePage() {
               <NoteList
                 notes={notes}
                 loading={loading}
+                syncingNoteIds={syncingNoteIds}
                 emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
                 onNoteClick={(note) => {
                   // 点击卡片不做任何操作，可以在此添加其他行为
