@@ -24,12 +24,12 @@ import { TaskStatusSheet } from '@/components/TaskStatusSheet'
 import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
 import { useSSE } from '@/hooks/useSSE'
 import { useNotes } from '@/hooks/useNotes'
+import { useCreateNote } from '@/hooks/useCreateNote'
 
 export default function HomePage() {
   const queryClient = useQueryClient()
   const [categories, setCategories] = useState<Category[]>([])
   const [tags, setTags] = useState<Tag[]>([])
-  const [submitting, setSubmitting] = useState(false)
 
   // 筛选状态
   const [selectedCategory, setSelectedCategory] = useState<string>()
@@ -50,6 +50,9 @@ export default function HomePage() {
           dateFilterMode: 'both',
         }
   )
+
+  // 使用 useCreateNote hook 进行笔记创建（支持乐观更新）
+  const createNoteMutation = useCreateNote()
 
   // 搜索结果状态
   const [searchResults, setSearchResults] = useState<NoteBlock[] | null>(null)
@@ -149,32 +152,28 @@ export default function HomePage() {
   }
 
   // 创建笔记
-  const handleCreateNote = async (data: { content: string; category?: string; tags?: string[]; importance?: number }) => {
-    try {
-      setSubmitting(true)
-      await notesApi.create(data.content, undefined, {
+  const handleCreateNote = (data: { content: string; category?: string; tags?: string[]; importance?: number }) => {
+    createNoteMutation.mutate(
+      {
+        content: data.content,
+        date: undefined,
         category: data.category,
         tags: data.tags,
         importance: data.importance,
-      })
-
-      // 立即刷新任务统计
-      queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
-      if (!searchQuery) {
-        await refetchNotes()
+      },
+      {
+        onError: (error) => {
+          console.error('Failed to create note:', error)
+          // 显示详细错误信息
+          const errorMessage = axios.isAxiosError(error)
+            ? error.response?.data?.error || error.message
+            : error instanceof Error
+              ? error.message
+              : '未知错误'
+          alert(`创建笔记失败: ${errorMessage}`)
+        },
       }
-    } catch (error) {
-      console.error('Failed to create note:', error)
-      // 显示详细错误信息
-      const errorMessage = axios.isAxiosError(error)
-        ? error.response?.data?.error || error.message
-        : error instanceof Error
-          ? error.message
-          : '未知错误'
-      alert(`创建笔记失败: ${errorMessage}`)
-    } finally {
-      setSubmitting(false)
-    }
+    )
   }
 
   // 分析笔记
@@ -366,8 +365,8 @@ export default function HomePage() {
             <NoteEditor
               mode="create"
               onSubmit={handleCreateNote}
-              disabled={submitting}
-              loading={submitting}
+              disabled={createNoteMutation.isPending}
+              loading={createNoteMutation.isPending}
               placeholder="今天有什么想记录的？..."
               showCategory={true}
               showTags={true}
