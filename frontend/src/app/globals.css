@@ -6,6 +6,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* MDX Editor Styles */
+@import "@mdxeditor/editor/style.css";
+
 @layer base {
   :root {
     --radius: 0.5rem;
