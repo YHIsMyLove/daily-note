@@ -7,5 +7,6 @@ target
 *.db
 
 # Auto Claude data directory
-.auto-claude/
+.auto-claude
 .claude/settings.local.json
+.claude
