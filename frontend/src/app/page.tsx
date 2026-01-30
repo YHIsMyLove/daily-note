@@ -411,9 +411,10 @@ export default function HomePage() {
             ) : (
               <KnowledgeGraph
                 filters={{
-                  category: selectedCategory,
+                  categories: selectedCategory ? [selectedCategory] : undefined,
                   tags: selectedTags.length > 0 ? selectedTags : undefined,
-                  date: selectedDate ?? undefined,
+                  dateFrom: selectedDate ? selectedDate.toISOString().split('T')[0] : undefined,
+                  dateTo: selectedDate ? selectedDate.toISOString().split('T')[0] : undefined,
                 }}
                 className="h-full"
               />
