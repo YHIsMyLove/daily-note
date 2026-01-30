@@ -93,11 +93,14 @@ export function MergeTagDialog({
         onOpenChange(false)
       } else {
         // API 返回错误
-        setError(response.message || '合并失败，请稍后重试')
+        setError(response.error || '合并失败，请稍后重试')
       }
     } catch (err) {
       // 网络或其他错误
-      setError(err instanceof Error ? err.message : '合并失败，请稍后重试')
+      const errorMessage = err && typeof err === 'object' && 'response' in err
+        ? (err as any).response?.data?.error || (err as any).message
+        : err instanceof Error ? err.message : '合并失败，请稍后重试'
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
