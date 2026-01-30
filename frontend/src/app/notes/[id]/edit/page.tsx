@@ -40,6 +40,11 @@ export default function EditNotePage() {
         const response = await notesApi.get(noteId)
 
         if (response.data) {
+          console.log('[EditPage] 笔记加载成功:', {
+            id: response.data.id,
+            contentLength: response.data.content?.length || 0,
+            contentPreview: response.data.content?.substring(0, 50) || '(empty)',
+          })
           setNote(response.data)
         } else {
           setError('笔记不存在')

@@ -5,8 +5,28 @@
  */
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { MDXEditor, type MDXEditorMethods } from '@mdxeditor/editor'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  MDXEditor,
+  type MDXEditorMethods,
+  // 基础插件
+  headingsPlugin,
+  listsPlugin,
+  linkPlugin,
+  linkDialogPlugin,
+  quotePlugin,
+  thematicBreakPlugin,
+  markdownShortcutPlugin,
+  // 工具栏插件
+  toolbarPlugin,
+  UndoRedo,
+  BoldItalicUnderlineToggles,
+  BlockTypeSelect,
+  CreateLink,
+  ListsToggle,
+  CodeToggle,
+  Separator,
+} from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -73,11 +93,15 @@ export function MarkdownEditor({
   const [content, setContent] = useState(initialContent)
   const [hasChanges, setHasChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const editorRef = useState<MDXEditorMethods | null>(null)[0]
+  const editorRef = useRef<MDXEditorMethods>(null)
   const router = useRouter()
 
   // 更新 content 当 initialContent 变化时（外部数据加载）
   useEffect(() => {
+    console.log('[MarkdownEditor] initialContent 更新:', {
+      length: initialContent?.length || 0,
+      preview: initialContent?.substring(0, 50) || '(empty)',
+    })
     setContent(initialContent)
   }, [initialContent])
 
@@ -228,8 +252,34 @@ export function MarkdownEditor({
                 onChange={handleChange}
                 placeholder={placeholder}
                 disabled={disabled || loading}
-                className="h-full prose prose-sm dark:prose-invert max-w-none"
+                className="h-full dark:prose-invert max-w-none"
                 contentEditableClassName="min-h-[500px] p-4 focus:outline-none"
+                plugins={[
+                  headingsPlugin(),
+                  listsPlugin(),
+                  linkPlugin(),
+                  linkDialogPlugin(),
+                  quotePlugin(),
+                  thematicBreakPlugin(),
+                  markdownShortcutPlugin(),
+                  toolbarPlugin({
+                    toolbarClassName: 'flex flex-wrap items-center gap-1 p-2 border-b border-border bg-background',
+                    toolbarContents: () => (
+                      <>
+                        <UndoRedo />
+                        <Separator />
+                        <BoldItalicUnderlineToggles />
+                        <CodeToggle />
+                        <Separator />
+                        <BlockTypeSelect />
+                        <Separator />
+                        <ListsToggle />
+                        <Separator />
+                        <CreateLink />
+                      </>
+                    )
+                  })
+                ]}
               />
             </div>
           </Card>
