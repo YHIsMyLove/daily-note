@@ -25,6 +25,7 @@ import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
 import { useSSE } from '@/hooks/useSSE'
 import { useNotes } from '@/hooks/useNotes'
 import { useCreateNote } from '@/hooks/useCreateNote'
+import { useDeleteNote } from '@/hooks/useDeleteNote'
 
 export default function HomePage() {
   const queryClient = useQueryClient()
@@ -53,6 +54,9 @@ export default function HomePage() {
 
   // 使用 useCreateNote hook 进行笔记创建（支持乐观更新）
   const createNoteMutation = useCreateNote()
+
+  // 使用 useDeleteNote hook 进行笔记删除（支持乐观更新）
+  const deleteNoteMutation = useDeleteNote()
 
   // 搜索结果状态
   const [searchResults, setSearchResults] = useState<NoteBlock[] | null>(null)
@@ -222,15 +226,18 @@ export default function HomePage() {
     })
 
     if (confirmed) {
-      try {
-        await notesApi.delete(note.id)
-        if (!searchQuery) {
-          await refetchNotes()
-        }
-      } catch (error) {
-        console.error('Failed to delete note:', error)
-        alert('删除失败，请稍后重试')
-      }
+      deleteNoteMutation.mutate(note.id, {
+        onError: (error) => {
+          console.error('Failed to delete note:', error)
+          // 显示详细错误信息
+          const errorMessage = axios.isAxiosError(error)
+            ? error.response?.data?.error || error.message
+            : error instanceof Error
+              ? error.message
+              : '未知错误'
+          alert(`删除笔记失败: ${errorMessage}`)
+        },
+      })
     }
   }
 
