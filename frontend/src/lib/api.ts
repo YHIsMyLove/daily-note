@@ -205,6 +205,10 @@ export const tagsApi = {
   delete: (id: string): ApiResponseType<void> => apiClient.delete(`/api/tags/${id}`),
   cleanup: (): ApiResponseType<{ deletedCount: number; deletedTags: Tag[] }> =>
     apiClient.post('/api/tags/cleanup'),
+  rename: (id: string, newName: string): ApiResponseType<Tag> =>
+    apiClient.put(`/api/tags/${id}/rename`, { newName }),
+  merge: (sourceTagId: string, targetTagId: string): ApiResponseType<{ sourceTag: Tag; targetTag: Tag; affectedNotes: number }> =>
+    apiClient.post('/api/tags/merge', { sourceTagId, targetTagId }),
 }
 
 /**
