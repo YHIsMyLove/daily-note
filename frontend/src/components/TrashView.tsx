@@ -6,7 +6,7 @@
  * 展示已删除的笔记，支持恢复和永久删除
  */
 import { useState, useEffect } from 'react'
-import { Trash2, RotateCcw, AlertCircle, Calendar } from 'lucide-react'
+import { Trash2, RotateCcw, AlertCircle, Calendar, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -198,9 +198,9 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
    * 渲染加载状态
    */
   const renderLoading = () => (
-    <div className="flex flex-col items-center justify-center h-full py-12">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-      <p className="text-sm text-muted-foreground">加载中...</p>
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <span className="ml-3 text-text-muted">加载中...</span>
     </div>
   )
 
@@ -208,7 +208,7 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
    * 渲染错误状态
    */
   const renderError = () => (
-    <div className="flex flex-col items-center justify-center h-full py-12">
+    <div className="flex flex-col items-center justify-center py-12 text-center">
       <AlertCircle className="h-12 w-12 text-destructive mb-4" />
       <p className="text-sm text-destructive mb-4">{error}</p>
       <Button variant="outline" size="sm" onClick={loadTrash}>
@@ -221,9 +221,9 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
    * 渲染空状态
    */
   const renderEmpty = () => (
-    <div className="flex flex-col items-center justify-center h-full py-12">
-      <Trash2 className="h-12 w-12 text-muted-foreground mb-4" />
-      <p className="text-sm text-muted-foreground">回收站为空</p>
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="text-6xl mb-4">🗑️</div>
+      <p className="text-text-muted">回收站为空</p>
     </div>
   )
 
