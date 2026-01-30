@@ -21,6 +21,7 @@ import { queueManager } from './queue/queue-manager'
 import { executeNoteClassification } from './queue/executors/note-classifier.executor'
 import { executeSummaryAnalysis } from './queue/executors/summary-analyzer.executor'
 import { promptService } from './services/prompt.service'
+import { autoSummaryService } from './services/auto-summary.service'
 
 // 获取当前文件所在目录
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -183,6 +184,16 @@ const start = async () => {
     console.log('[PromptService] Initializing default prompt templates...')
     await promptService.initializeDefaults()
     console.log('[PromptService] Default prompt templates initialized')
+
+    // 启动时自动分析：检测缺失的总结并触发自动分析
+    console.log('[AutoSummary] Checking for unsummarized dates on startup...')
+    const analysisResult = await autoSummaryService.triggerAutoAnalysis()
+    if (analysisResult.triggered) {
+      console.log(`[AutoSummary] ${analysisResult.message}`)
+      console.log(`[AutoSummary] Task ID: ${analysisResult.taskId}`)
+    } else {
+      console.log(`[AutoSummary] ${analysisResult.message}`)
+    }
 
     await fastify.listen({ port, host })
 
