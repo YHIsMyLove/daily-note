@@ -55,6 +55,9 @@ export default function HomePage() {
   // 总结历史面板
   const [summaryHistorySheetOpen, setSummaryHistorySheetOpen] = useState(false)
 
+  // 回收站面板
+  const [trashSheetOpen, setTrashSheetOpen] = useState(false)
+
   // 视图模式：list 或 graph
   const [viewMode, setViewMode] = useState<'list' | 'graph'>(() => {
     // 从 localStorage 读取保存的视图模式
@@ -369,6 +372,7 @@ export default function HomePage() {
             onDateSelect={setSelectedDate}
             onSearchChange={setSearchQuery}
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
+            onShowTrash={() => setTrashSheetOpen(true)}
           />
         </aside>
 
