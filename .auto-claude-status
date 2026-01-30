@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "009-note-skill",
-  "state": "building",
+  "spec": "013-fix-activitycalendar-touch-target-size-for-mobile-",
+  "state": "planning",
   "subtasks": {
-    "completed": 20,
-    "total": 22,
+    "completed": 0,
+    "total": 0,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Integration Testing and Verification",
+    "current": "Frontend Touch Target Fix",
     "id": null,
-    "total": 5
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 21,
-    "started_at": "2026-01-30T21:25:22.602011"
+    "number": 3,
+    "started_at": "2026-01-31T00:09:24.618267"
   },
-  "last_update": "2026-01-30T22:27:00.700066"
+  "last_update": "2026-01-31T00:15:07.151558"
 }

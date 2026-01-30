@@ -140,7 +140,7 @@ export function ActivityCalendar({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          'w-7 h-7 rounded-md transition-all duration-150',
+          'w-11 h-11 rounded-md transition-all duration-150',
           getActivityColor(level),
           count > 0 && !disabled && 'hover:ring-1 hover:ring-white/50 hover:scale-105 cursor-pointer',
           count === 0 && 'opacity-40',
