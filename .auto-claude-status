@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "001-",
+  "state": "building",
+  "subtasks": {
+    "completed": 1,
+    "total": 11,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Backend Services - Auto-Summary & Scheduler",
+    "id": null,
+    "total": 3
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 2,
+    "started_at": "2026-01-30T18:42:41.182605"
+  },
+  "last_update": "2026-01-30T18:46:05.535237"
+}
