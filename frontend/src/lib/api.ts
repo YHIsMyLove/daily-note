@@ -2,15 +2,8 @@
  * API 客户端
  * 跨平台支持（桌面端使用本地 API，移动端使用云端 API）
  */
-import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
-import { toast } from 'sonner'
+import axios, { AxiosInstance } from 'axios'
 import { getPlatform, isTauriEnvironment } from './platform'
-import {
-  retryWithBackoff,
-  isAxiosErrorRetryable,
-  getErrorMessage,
-  classifyError,
-} from './retry'
 import {
   NoteBlock,
   Category,
@@ -27,6 +20,8 @@ import {
   Summary,
   SummaryComparison,
   SummaryHistoryFilters,
+  GraphData,
+  GraphFilters,
 } from '@daily-note/shared'
 
 // API 响应类型（后端返回格式）
@@ -113,87 +108,14 @@ const getApiClient = (): AxiosInstance => {
     return config
   })
 
-  // 响应拦截器（带重试逻辑）
+  // 响应拦截器
   client.interceptors.response.use(
     (response) => response.data,
-    async (error: AxiosError) => {
-      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: number; _retryCount?: number }
-
-      // 初始化重试计数器
-      if (!originalRequest._retryCount) {
-        originalRequest._retryCount = 0
-      }
-
-      // 检查是否应该重试
-      const maxRetries = 3
-      const shouldRetry = isAxiosErrorRetryable(error) && originalRequest._retryCount < maxRetries
-
-      if (shouldRetry) {
-        originalRequest._retryCount++
-
-        // 计算延迟时间（指数退避：1s, 2s, 4s）
-        const delay = Math.min(1000 * Math.pow(2, originalRequest._retryCount - 1), 10000)
-
-        // 添加抖动（±25%）
-        const jitter = delay * 0.25
-        const actualDelay = delay + (Math.random() * 2 * jitter - jitter)
-
-        // 记录重试日志
-        const errorType = classifyError(error)
-        console.log(`[API] 请求失败，正在重试 (${originalRequest._retryCount}/${maxRetries}) - 错误类型: ${errorType}, 延迟: ${Math.round(actualDelay)}ms`, {
-          url: originalRequest.url,
-          method: originalRequest.method,
-          status: error.response?.status,
-        })
-
-        // 等待后重试
-        await new Promise(resolve => setTimeout(resolve, actualDelay))
-
-        // 重新发起请求
-        try {
-          const response = await client(originalRequest)
-          return response.data
-        } catch (retryError) {
-          // 如果重试也失败，继续抛出错误（会被下面的错误处理捕获）
-          throw retryError
-        }
-      }
-
-      // 处理不需要重试或重试次数已用完的错误
-      const userMessage = getErrorMessage(error)
-      const errorType = classifyError(error)
-
-      // 记录详细错误信息
-      console.error('[API] 请求失败:', {
-        url: originalRequest?.url,
-        method: originalRequest?.method,
-        status: error.response?.status,
-        errorType,
-        retryCount: originalRequest._retryCount || 0,
-        message: userMessage,
-      })
-
-      // 显示用户友好的错误提示
-      toast.error(userMessage, {
-        description: originalRequest._retryCount > 0
-          ? `已重试 ${originalRequest._retryCount} 次后失败`
-          : undefined,
-      })
-
-      // 401 未授权错误特殊处理
+    (error) => {
       if (error.response?.status === 401) {
-        console.error('[API] Unauthorized - 需要重新登录')
+        console.error('Unauthorized')
       }
-
-      // 返回增强的错误对象
-      const enhancedError = {
-        ...error,
-        userMessage,
-        errorType,
-        retryCount: originalRequest._retryCount || 0,
-      }
-
-      return Promise.reject(enhancedError)
+      return Promise.reject(error)
     }
   )
 
@@ -376,5 +298,13 @@ export const summariesApi = {
     apiClient.get(`/api/summaries/${id}/compare`, { params: { compareId } }),
   deleteRecord: (id: string): ApiResponseType<{ message: string }> =>
     apiClient.delete(`/api/summaries/record/${id}`),
+}
+
+/**
+ * 知识图谱 API
+ */
+export const graphApi = {
+  get: (filters?: GraphFilters): ApiResponseType<GraphData> =>
+    apiClient.get('/api/graph', { params: filters }),
 }
 

@@ -20,6 +20,7 @@ import {
 import { Button } from './ui/button'
 import { NoteEditor, NoteEditorData } from './NoteEditor'
 import { notesApi } from '@/lib/api'
+import { getCategoryColorClass, getTextColorClass } from '@/lib/colors'
 
 interface NoteCardProps {
   note: NoteBlock
@@ -34,16 +35,6 @@ interface NoteCardProps {
   onEditEnd?: () => void
 }
 
-// 分类颜色映射
-const categoryColors: Record<string, string> = {
-  '工作总结': 'bg-blue-500/15 text-blue-300 border border-blue-500/25',
-  '待办事项': 'bg-orange-500/15 text-orange-300 border border-orange-500/25',
-  '想法记录': 'bg-purple-500/15 text-purple-300 border border-purple-500/25',
-  '学习笔记': 'bg-green-500/15 text-green-300 border border-green-500/25',
-  '生活琐事': 'bg-pink-500/15 text-pink-300 border border-pink-500/25',
-  '其他': 'bg-gray-500/15 text-gray-300 border border-gray-500/25',
-}
-
 // 情感图标映射
 const sentimentIcons: Record<string, string> = {
   positive: '😊',
@@ -53,7 +44,7 @@ const sentimentIcons: Record<string, string> = {
 
 export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, onTaskRefresh, onRelatedNotesClick, isEditing, onEditStart, onEditEnd }: NoteCardProps) {
   const [loading, setLoading] = useState(false)
-  const categoryColor = categoryColors[note.category || '其他'] || categoryColors['其他']
+  const categoryColor = getCategoryColorClass(note.category || '其他')
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -158,7 +149,7 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
       <div className="flex items-center justify-between mb-2 pr-8">
         <div className="flex items-center gap-1.5">
           {note.category && (
-            <span className={`text-xs font-bold ${categoryColor.split(' ')[1]}`}>
+            <span className={`text-xs font-bold ${getTextColorClass(note.category)}`}>
               {note.category}
             </span>
           )}

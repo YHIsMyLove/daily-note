@@ -11,27 +11,7 @@ import { Plus, ChevronRight } from 'lucide-react'
 import { ItemSelectorSheet } from '../ItemSelectorSheet'
 import { categoriesApi } from '@/lib/api'
 import { Category } from '@daily-note/shared'
-
-// 预设颜色池（与 ItemSelectorSheet 保持一致）
-const COLOR_POOL = [
-  'bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30',
-  'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30',
-  'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30',
-  'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30',
-  'bg-pink-500/20 text-pink-400 border-pink-500/30 hover:bg-pink-500/30',
-  'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/30',
-  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30',
-  'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30',
-]
-
-// 根据名称获取颜色
-const getColorForName = (name: string): string => {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return COLOR_POOL[Math.abs(hash) % COLOR_POOL.length]
-}
+import { getColorName, getCategoryColorStyle } from '@/lib/colors'
 
 interface CategorySelectorProps {
   value: string
@@ -61,17 +41,33 @@ export function CategorySelector({ value, onChange, compact = false }: CategoryS
 
   // 紧凑模式：只显示当前选中或"选择分类"
   if (compact) {
+    const categoryStyle = value ? getCategoryColorStyle(value) : undefined
+
     return (
       <>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setSheetOpen(true)}
-          className={`h-7 px-2 text-xs ${
-            value
-              ? getColorForName(value)
-              : 'text-text-muted hover:text-text-primary'
-          }`}
+          className="h-7 px-2 text-xs"
+          style={categoryStyle || {
+            color: 'hsl(var(--text-muted))',
+          }}
+          onMouseEnter={(e) => {
+            if (value) {
+              const colorName = getColorName(value)
+              e.currentTarget.style.backgroundColor = `hsl(var(--category-${colorName}) / 0.3)`
+            } else {
+              e.currentTarget.style.color = 'hsl(var(--text-primary))'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (value) {
+              e.currentTarget.style.backgroundColor = `hsl(var(--category-${getColorName(value)}) / 0.15)`
+            } else {
+              e.currentTarget.style.color = 'hsl(var(--text-muted))'
+            }
+          }}
         >
           {value || '选择分类'}
           <ChevronRight className="h-3 w-3 ml-1" />
@@ -104,13 +100,25 @@ export function CategorySelector({ value, onChange, compact = false }: CategoryS
         <div className="flex items-center gap-1.5 flex-wrap">
           {displayCategories.map((category) => {
             const isSelected = value === category.name
-            const colorClass = getColorForName(category.name)
+            const categoryStyle = getCategoryColorStyle(category.name)
 
             return (
               <Badge
                 key={category.name}
                 variant={isSelected ? 'default' : 'outline'}
-                className={`cursor-pointer transition-all ${!isSelected ? colorClass : ''}`}
+                className="cursor-pointer transition-all"
+                style={!isSelected ? categoryStyle : undefined}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    const colorName = getColorName(category.name)
+                    e.currentTarget.style.backgroundColor = `hsl(var(--category-${colorName}) / 0.3)`
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = `hsl(var(--category-${getColorName(category.name)}) / 0.15)`
+                  }
+                }}
                 onClick={() => {
                   if (isSelected) {
                     // 点击已选中的则取消选中

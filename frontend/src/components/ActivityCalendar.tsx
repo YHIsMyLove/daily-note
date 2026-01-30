@@ -51,10 +51,10 @@ export function ActivityCalendar({
       setIsLoading(true)
       try {
         const year = currentDate.getFullYear()
-        const month = currentDate.getMonth() + 1
+        const month = currentDate.getMonth()
 
-        const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
-        const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+        const startDate = new Date(year, month, 1).toISOString().split('T')[0]
+        const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
 
         const response = await statsApi.activity({
           mode: 'month',
