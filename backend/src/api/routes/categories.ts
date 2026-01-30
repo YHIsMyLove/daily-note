@@ -203,6 +203,71 @@ export async function categoriesRoutes(fastify: FastifyInstance) {
     }
   })
 
+  // 重命名标签
+  fastify.put('/api/tags/:id/rename', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string }
+      const { newName } = request.body as { newName: string }
+
+      // 验证新名称
+      if (!newName || !newName.trim()) {
+        return reply.status(400).send({
+          success: false,
+          error: 'New tag name is required',
+        })
+      }
+
+      const trimmedName = newName.trim()
+
+      // 检查标签是否存在
+      const existingTag = await prisma.tag.findUnique({
+        where: { id },
+      })
+
+      if (!existingTag) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Tag not found',
+        })
+      }
+
+      // 检查新名称是否与其他标签冲突
+      const conflictingTag = await prisma.tag.findFirst({
+        where: {
+          name: trimmedName,
+          id: { not: id }, // 排除当前标签
+        },
+      })
+
+      if (conflictingTag) {
+        return reply.status(400).send({
+          success: false,
+          error: 'A tag with this name already exists',
+        })
+      }
+
+      // 更新标签名称（NoteTag 关系会通过外键自动保留）
+      const updatedTag = await prisma.tag.update({
+        where: { id },
+        data: { name: trimmedName },
+      })
+
+      return reply.send({
+        success: true,
+        data: {
+          id: updatedTag.id,
+          name: updatedTag.name,
+        },
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to rename tag',
+      })
+    }
+  })
+
   // 清理没有笔记关联的标签
   fastify.post('/api/tags/cleanup', async (request, reply) => {
     try {
