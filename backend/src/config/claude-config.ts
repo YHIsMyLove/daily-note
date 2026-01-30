@@ -74,3 +74,27 @@ export function getBaseUrl(): string | undefined {
   console.log('[Config] Using default Anthropic API endpoint')
   return undefined
 }
+
+/**
+ * 获取 API 超时时间（毫秒）
+ */
+export function getApiTimeout(): number {
+  const timeout = process.env.ANTHROPIC_API_TIMEOUT
+  return timeout ? parseInt(timeout, 10) : 60000 // 默认 60 秒
+}
+
+/**
+ * 获取最大重试次数
+ */
+export function getMaxRetryAttempts(): number {
+  const attempts = process.env.CLAUDE_MAX_RETRY_ATTEMPTS
+  return attempts ? parseInt(attempts, 10) : 3 // 默认 3 次
+}
+
+/**
+ * 获取初始重试延迟（毫秒）
+ */
+export function getRetryInitialDelay(): number {
+  const delay = process.env.CLAUDE_RETRY_INITIAL_DELAY
+  return delay ? parseInt(delay, 10) : 1000 // 默认 1 秒
+}

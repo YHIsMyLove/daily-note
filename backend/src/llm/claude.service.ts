@@ -4,8 +4,10 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { CLASSIFY_NOTE_PROMPT, ANALYZE_TRENDS_PROMPT, GENERATE_DAILY_SUMMARY_PROMPT } from './prompts'
-import { getApiKey, getBaseUrl } from '../config/claude-config'
+import { getApiKey, getBaseUrl, getApiTimeout, getMaxRetryAttempts, getRetryInitialDelay } from '../config/claude-config'
 import { promptService } from '../services/prompt.service'
+import { retryWithBackoff, isNetworkError, isTimeoutError, isHttpStatusCodeRetryable } from '../utils/retry'
+import { classifyError, formatUserMessage, ErrorType } from '../utils/errors'
 
 // 分类结果类型
 export interface ClassificationResult {
@@ -53,6 +55,9 @@ export interface HierarchicalSummaryInput {
 
 export class ClaudeService {
   private client: Anthropic
+  private readonly maxAttempts: number
+  private readonly initialDelay: number
+  private readonly timeout: number
 
   constructor() {
     const apiKey = getApiKey()
@@ -68,12 +73,54 @@ export class ClaudeService {
     }
 
     this.client = new Anthropic(config)
+    this.maxAttempts = getMaxRetryAttempts()
+    this.initialDelay = getRetryInitialDelay()
+    this.timeout = getApiTimeout()
 
     console.log('[ClaudeService] Initialized successfully')
     console.log(`  - API Key: ${apiKey.slice(0, 20)}...${apiKey.slice(-4)}`)
     if (baseUrl) {
       console.log(`  - Base URL: ${baseUrl}`)
     }
+    console.log(`  - Max Retry Attempts: ${this.maxAttempts}`)
+    console.log(`  - Initial Retry Delay: ${this.initialDelay}ms`)
+    console.log(`  - API Timeout: ${this.timeout}ms`)
+  }
+
+  /**
+   * 判断错误是否可重试
+   */
+  private isRetryableError(error: any): boolean {
+    const classified = classifyError(error)
+
+    // 认证错误和配额错误不可重试
+    if (classified.type === ErrorType.AUTHENTICATION ||
+        classified.type === ErrorType.QUOTA_EXCEEDED ||
+        classified.type === ErrorType.CLIENT) {
+      return false
+    }
+
+    // 其他错误根据分类结果判断
+    return classified.retryable
+  }
+
+  /**
+   * 记录详细错误信息
+   */
+  private logError(context: string, error: any, attempt?: number): void {
+    const classified = classifyError(error)
+    const userMessage = formatUserMessage(classified)
+
+    console.error(`[ClaudeService] Error in ${context}:`)
+    console.error(`  - Type: ${classified.type}`)
+    console.error(`  - Message: ${userMessage}`)
+    if (attempt !== undefined) {
+      console.error(`  - Attempt: ${attempt}`)
+    }
+    if (classified.statusCode) {
+      console.error(`  - Status Code: ${classified.statusCode}`)
+    }
+    console.error(`  - Details: ${classified.details}`)
   }
 
   /**
@@ -86,53 +133,67 @@ export class ClaudeService {
       existingTags?: Array<{ name: string; count: number }>
     } = {}
   ): Promise<ClassificationResult> {
+    const context = 'classifyNote'
+
     try {
-      // 格式化分类列表
-      const categoriesText = options.existingCategories
-        ?.map((c) => `- ${c.name} (使用 ${c.count} 次)`)
-        .join('\n') || '暂无分类'
+      return await retryWithBackoff(
+        async () => {
+          // 格式化分类列表
+          const categoriesText = options.existingCategories
+            ?.map((c) => `- ${c.name} (使用 ${c.count} 次)`)
+            .join('\n') || '暂无分类'
 
-      // 格式化标签列表
-      const tagsText = options.existingTags
-        ?.map((t) => `- ${t.name} (使用 ${t.count} 次)`)
-        .join('\n') || '暂无标签'
+          // 格式化标签列表
+          const tagsText = options.existingTags
+            ?.map((t) => `- ${t.name} (使用 ${t.count} 次)`)
+            .join('\n') || '暂无标签'
 
-      // 从 PromptService 获取提示词
-      const prompt = await promptService.getPrompt('classify_note', {
-        content,
-        existingCategories: categoriesText,
-        existingTags: tagsText,
-      })
+          // 从 PromptService 获取提示词
+          const prompt = await promptService.getPrompt('classify_note', {
+            content,
+            existingCategories: categoriesText,
+            existingTags: tagsText,
+          })
 
-      const message = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      })
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 1024,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
 
-      // 提取 JSON 响应
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          // 提取 JSON 响应
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
 
-      if (!jsonMatch) {
-        throw new Error('Failed to extract JSON from Claude response')
-      }
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
 
-      const result = JSON.parse(jsonMatch[0]) as ClassificationResult
+          const result = JSON.parse(jsonMatch[0]) as ClassificationResult
 
-      // 验证返回结果
-      if (!result.category || !result.tags || !result.summary) {
-        throw new Error('Invalid classification result from Claude')
-      }
+          // 验证返回结果
+          if (!result.category || !result.tags || !result.summary) {
+            throw new Error('Invalid classification result from Claude')
+          }
 
-      return { ...result, isFallback: false }
+          return { ...result, isFallback: false }
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(context, error, attempt)
+          }
+        }
+      )
     } catch (error) {
-      console.error('Claude classification error:', error)
+      this.logError(context, error, this.maxAttempts)
       // 返回默认分类
       return this.getDefaultClassification(content)
     }
@@ -147,35 +208,49 @@ export class ClaudeService {
     categoryDistribution: string
     tagDistribution: string
   }): Promise<TrendsAnalysisResult> {
+    const context = 'analyzeTrends'
+
     try {
-      const prompt = await promptService.getPrompt('analyze_trends', {
-        dateRange: data.dateRange,
-        noteCount: data.noteCount,
-        categoryDistribution: data.categoryDistribution,
-        tagDistribution: data.tagDistribution,
-      })
+      return await retryWithBackoff(
+        async () => {
+          const prompt = await promptService.getPrompt('analyze_trends', {
+            dateRange: data.dateRange,
+            noteCount: data.noteCount,
+            categoryDistribution: data.categoryDistribution,
+            tagDistribution: data.tagDistribution,
+          })
 
-      const message = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      })
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 1024,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
 
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
 
-      if (!jsonMatch) {
-        throw new Error('Failed to extract JSON from Claude response')
-      }
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
 
-      return JSON.parse(jsonMatch[0]) as TrendsAnalysisResult
+          return JSON.parse(jsonMatch[0]) as TrendsAnalysisResult
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(context, error, attempt)
+          }
+        }
+      )
     } catch (error) {
-      console.error('Claude trends analysis error:', error)
+      this.logError(context, error, this.maxAttempts)
       return {
         summary: '暂无趋势分析',
         topCategories: [],
@@ -194,35 +269,49 @@ export class ClaudeService {
     categorySummary: string
     importantNotes: string
   }): Promise<DailySummaryResult> {
+    const context = 'generateDailySummary'
+
     try {
-      const prompt = await promptService.getPrompt('generate_daily_summary', {
-        date: data.date,
-        noteCount: data.noteCount,
-        categorySummary: data.categorySummary,
-        importantNotes: data.importantNotes,
-      })
+      return await retryWithBackoff(
+        async () => {
+          const prompt = await promptService.getPrompt('generate_daily_summary', {
+            date: data.date,
+            noteCount: data.noteCount,
+            categorySummary: data.categorySummary,
+            importantNotes: data.importantNotes,
+          })
 
-      const message = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      })
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 1024,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
 
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
 
-      if (!jsonMatch) {
-        throw new Error('Failed to extract JSON from Claude response')
-      }
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
 
-      return JSON.parse(jsonMatch[0]) as DailySummaryResult
+          return JSON.parse(jsonMatch[0]) as DailySummaryResult
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(context, error, attempt)
+          }
+        }
+      )
     } catch (error) {
-      console.error('Claude daily summary error:', error)
+      this.logError(context, error, this.maxAttempts)
       return {
         summary: '暂无总结',
         keyAchievements: [],
@@ -247,39 +336,43 @@ export class ClaudeService {
     noteCount: number
     previousSummary?: any
   }): Promise<SummaryAnalysisResult> {
+    const context = 'generateSummaryAnalysis'
+
     try {
-      // 构建笔记摘要
-      const notesSummary = data.notes.map((note, idx) => {
-        const preview = note.content.slice(0, 100)
-        return `${idx + 1}. [${note.category || '未分类'}] ${preview}${note.content.length > 100 ? '...' : ''}`
-      }).join('\n')
+      return await retryWithBackoff(
+        async () => {
+          // 构建笔记摘要
+          const notesSummary = data.notes.map((note, idx) => {
+            const preview = note.content.slice(0, 100)
+            return `${idx + 1}. [${note.category || '未分类'}] ${preview}${note.content.length > 100 ? '...' : ''}`
+          }).join('\n')
 
-      // 统计情绪分布
-      const sentimentCounts = data.notes.reduce((acc, note) => {
-        const sentiment = note.sentiment || 'neutral'
-        acc[sentiment]++
-        return acc
-      }, { positive: 0, neutral: 0, negative: 0 })
+          // 统计情绪分布
+          const sentimentCounts = data.notes.reduce((acc, note) => {
+            const sentiment = note.sentiment || 'neutral'
+            acc[sentiment]++
+            return acc
+          }, { positive: 0, neutral: 0, negative: 0 })
 
-      // 提取高重要性笔记
-      const importantNotes = data.notes
-        .filter((n) => (n.importance || 0) >= 7)
-        .map((n) => n.content.slice(0, 200))
-        .join('\n\n')
+          // 提取高重要性笔记
+          const importantNotes = data.notes
+            .filter((n) => (n.importance || 0) >= 7)
+            .map((n) => n.content.slice(0, 200))
+            .join('\n\n')
 
-      // 构建提示词
-      let prompt = await promptService.getPrompt('summary_analysis', {
-        timeRange: data.timeRange,
-        noteCount: data.noteCount.toString(),
-        notesSummary: notesSummary.slice(0, 5000), // 限制长度
-        sentimentSummary: `积极: ${sentimentCounts.positive}, 中性: ${sentimentCounts.neutral}, 消极: ${sentimentCounts.negative}`,
-        importantNotes: importantNotes.slice(0, 3000),
-      })
+          // 构建提示词
+          let prompt = await promptService.getPrompt('summary_analysis', {
+            timeRange: data.timeRange,
+            noteCount: data.noteCount.toString(),
+            notesSummary: notesSummary.slice(0, 5000), // 限制长度
+            sentimentSummary: `积极: ${sentimentCounts.positive}, 中性: ${sentimentCounts.neutral}, 消极: ${sentimentCounts.negative}`,
+            importantNotes: importantNotes.slice(0, 3000),
+          })
 
-      // 如果有旧总结，增强提示词
-      if (data.previousSummary) {
-        const previousText = this.formatPreviousSummary(data.previousSummary)
-        prompt = `
+          // 如果有旧总结，增强提示词
+          if (data.previousSummary) {
+            const previousText = this.formatPreviousSummary(data.previousSummary)
+            prompt = `
 ${prompt}
 
 **重要：这是一次更新操作，请参考以下旧总结进行改进和更新：**
@@ -291,29 +384,39 @@ ${previousText}
 - 添加新的信息和变化
 - 更新过时的数据
 `.trim()
-      }
+          }
 
-      const message = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2048,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      })
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
 
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
 
-      if (!jsonMatch) {
-        throw new Error('Failed to extract JSON from Claude response')
-      }
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
 
-      return JSON.parse(jsonMatch[0]) as SummaryAnalysisResult
+          return JSON.parse(jsonMatch[0]) as SummaryAnalysisResult
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(context, error, attempt)
+          }
+        }
+      )
     } catch (error) {
-      console.error('Claude summary analysis error:', error)
+      this.logError(context, error, this.maxAttempts)
       return {
         overview: '暂无总结',
         keyAchievements: [],
@@ -327,10 +430,14 @@ ${previousText}
    * 基于子总结生成分层总结（用于周/月/年总结）
    */
   async generateHierarchicalSummary(data: HierarchicalSummaryInput & { previousSummary?: any }): Promise<SummaryAnalysisResult> {
+    const context = 'generateHierarchicalSummary'
+
     try {
-      // 提取所有子总结的关键信息
-      const subSummaries = data.subSummaries.map((s: any, idx: number) => {
-        return `
+      return await retryWithBackoff(
+        async () => {
+          // 提取所有子总结的关键信息
+          const subSummaries = data.subSummaries.map((s: any, idx: number) => {
+            return `
 ## ${idx + 1}. ${s.period?.mode || 'summary'} (${s.period?.startDate || 'N/A'} - ${s.period?.endDate || 'N/A'})
 笔记数: ${s.period?.noteCount || 0}
 ${s.summary?.overview || ''}
@@ -344,20 +451,20 @@ ${(s.summary?.pendingTasks || []).map((t: string) => `- ${t}`).join('\n')}
 感悟:
 ${(s.summary?.insights || []).map((i: string) => `- ${i}`).join('\n')}
 `
-      }).join('\n---\n')
+          }).join('\n---\n')
 
-      // 构建提示词
-      let prompt = await promptService.getPrompt('hierarchical_summary', {
-        level: data.level,
-        timeRange: data.timeRange,
-        subSummariesCount: data.subSummaries.length.toString(),
-        subSummaries: subSummaries.slice(0, 8000), // 限制长度
-      })
+          // 构建提示词
+          let prompt = await promptService.getPrompt('hierarchical_summary', {
+            level: data.level,
+            timeRange: data.timeRange,
+            subSummariesCount: data.subSummaries.length.toString(),
+            subSummaries: subSummaries.slice(0, 8000), // 限制长度
+          })
 
-      // 如果有旧总结，增强提示词
-      if (data.previousSummary) {
-        const previousText = this.formatPreviousSummary(data.previousSummary)
-        prompt = `
+          // 如果有旧总结，增强提示词
+          if (data.previousSummary) {
+            const previousText = this.formatPreviousSummary(data.previousSummary)
+            prompt = `
 ${prompt}
 
 **重要：这是一次更新操作，请参考以下旧总结进行改进和更新：**
@@ -369,29 +476,39 @@ ${previousText}
 - 添加新的信息和变化
 - 更新过时的数据
 `.trim()
-      }
+          }
 
-      const message = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2048,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      })
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
 
-      const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
 
-      if (!jsonMatch) {
-        throw new Error('Failed to extract JSON from Claude response')
-      }
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
 
-      return JSON.parse(jsonMatch[0]) as SummaryAnalysisResult
+          return JSON.parse(jsonMatch[0]) as SummaryAnalysisResult
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(context, error, attempt)
+          }
+        }
+      )
     } catch (error) {
-      console.error('Claude hierarchical summary error:', error)
+      this.logError(context, error, this.maxAttempts)
       return {
         overview: '暂无总结',
         keyAchievements: [],
