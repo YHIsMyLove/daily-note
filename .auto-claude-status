@@ -1,10 +1,10 @@
 {
   "active": true,
   "spec": "019-trash-management-ui",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 2,
+    "total": 10,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 4,
     "started_at": "2026-01-31T00:10:10.113249"
   },
-  "last_update": "2026-01-31T00:15:54.471835"
+  "last_update": "2026-01-31T00:21:23.013470"
 }

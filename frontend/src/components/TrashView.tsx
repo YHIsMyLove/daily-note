@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { notesApi } from '@/lib/api'
 import { NoteBlock } from '@daily-note/shared'
+import { confirmDialog } from '@/components/ConfirmDialog'
 
 interface TrashViewProps {
   open: boolean
@@ -66,7 +67,6 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
         setNotes(response.data)
       }
     } catch (err) {
-      console.error('Failed to load trash:', err)
       setError('加载回收站失败')
     } finally {
       setLoading(false)
@@ -86,15 +86,21 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
    * 恢复笔记
    */
   const handleRestore = async (id: string) => {
-    if (!confirm('确定要恢复这条笔记吗？')) return
+    const confirmed = await confirmDialog({
+      title: '恢复笔记',
+      description: '确定要恢复这条笔记吗？',
+      confirmText: '恢复',
+      cancelText: '取消',
+    })
+
+    if (!confirmed) return
 
     try {
       await notesApi.restore(id)
       loadTrash()
       onRestore?.()
     } catch (err) {
-      console.error('Failed to restore note:', err)
-      alert('恢复失败')
+      setError('恢复失败，请重试')
     }
   }
 
@@ -102,14 +108,21 @@ export function TrashView({ open, onOpenChange, onRestore }: TrashViewProps) {
    * 永久删除笔记
    */
   const handlePermanentDelete = async (id: string) => {
-    if (!confirm('确定要永久删除这条笔记吗？此操作无法撤销！')) return
+    const confirmed = await confirmDialog({
+      title: '永久删除',
+      description: '确定要永久删除这条笔记吗？此操作无法撤销！',
+      confirmText: '删除',
+      cancelText: '取消',
+      variant: 'destructive',
+    })
+
+    if (!confirmed) return
 
     try {
       await notesApi.permanentDelete(id)
       loadTrash()
     } catch (err) {
-      console.error('Failed to permanently delete note:', err)
-      alert('删除失败')
+      setError('删除失败，请重试')
     }
   }
 
