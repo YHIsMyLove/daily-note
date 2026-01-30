@@ -14,6 +14,7 @@ import { SettingsSidebar } from '@/components/SettingsSidebar'
 import { SummaryMenu } from '@/components/SummaryMenu'
 import { SummaryResultSheet } from '@/components/SummaryResultSheet'
 import { SummaryHistory } from '@/components/SummaryHistory'
+import { FilterActiveIndicator } from '@/components/FilterActiveIndicator'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
 import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History } from 'lucide-react'
@@ -36,6 +37,22 @@ export default function HomePage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // 计算是否有激活的过滤器
+  const hasFilters = Boolean(
+    selectedCategory ||
+    selectedTags.length > 0 ||
+    selectedDate ||
+    searchQuery
+  )
+
+  // 清除所有过滤器
+  const handleClearFilters = () => {
+    setSelectedCategory(undefined)
+    setSelectedTags([])
+    setSelectedDate(null)
+    setSearchQuery('')
+  }
 
   // 任务状态面板
   const [taskSheetOpen, setTaskSheetOpen] = useState(false)
@@ -269,6 +286,11 @@ export default function HomePage() {
             )}
             <span>{isConnected ? '实时同步' : '已断开'}</span>
           </div>
+          {/* 过滤器激活指示器 */}
+          <FilterActiveIndicator
+            hasFilters={hasFilters}
+            onClear={handleClearFilters}
+          />
         </div>
         <div className="flex items-center gap-3">
           <SummaryMenu
