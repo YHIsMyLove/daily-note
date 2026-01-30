@@ -3,7 +3,7 @@
  * 处理笔记的 CRUD 操作、分类、关联等业务逻辑
  */
 import { prisma } from '../database/prisma'
-import { NoteBlock, CreateNoteRequest, UpdateNoteRequest } from '@daily-note/shared'
+import { NoteBlock, CreateNoteRequest, UpdateNoteRequest, SortField, SortOrder } from '@daily-note/shared'
 import { queueManager } from '../queue/queue-manager'
 
 export class NoteService {
@@ -99,8 +99,10 @@ export class NoteService {
     pageSize?: number
     includeDeleted?: boolean
     dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
+    orderBy?: SortField
+    order?: SortOrder
   } = {}): Promise<{ notes: NoteBlock[]; total: number }> {
-    const { date, category, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both' } = options
+    const { date, category, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both', orderBy = 'updatedAt', order = 'desc' } = options
 
     // 统一处理标签参数（优先使用 tags，兼容 tag）
     const tagFilters = tags || (tag ? [tag] : undefined)
@@ -174,7 +176,7 @@ export class NoteService {
     const [notes, total] = await Promise.all([
       prisma.note.findMany({
         where,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { [orderBy]: order },
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
