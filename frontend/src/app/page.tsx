@@ -17,12 +17,13 @@ import { SummaryHistory } from '@/components/SummaryHistory'
 import { KnowledgeGraph } from '@/components/KnowledgeGraph'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
-import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network } from 'lucide-react'
+import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
 import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
 import { useSSE } from '@/hooks/useSSE'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 export default function HomePage() {
   const queryClient = useQueryClient()
@@ -47,6 +48,9 @@ export default function HomePage() {
 
   // 设置侧边栏
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // 移动端侧边栏
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // 总结分析面板
   const [summarySheetOpen, setSummarySheetOpen] = useState(false)
@@ -269,8 +273,17 @@ export default function HomePage() {
       {/* 顶部标题栏 */}
       <header className="h-14 border-b border-border bg-background-secondary flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
+          {/* 移动端汉堡菜单按钮 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
           <h1 className="text-xl font-bold text-primary">Daily Note</h1>
-          <span className="text-sm text-text-muted">零碎笔记自动整理系统</span>
+          <span className="text-sm text-text-muted hidden sm:inline">零碎笔记自动整理系统</span>
           {/* SSE 连接状态指示器 */}
           <div
             className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
@@ -285,7 +298,7 @@ export default function HomePage() {
             ) : (
               <WifiOff className="w-3.5 h-3.5" />
             )}
-            <span>{isConnected ? '实时同步' : '已断开'}</span>
+            <span className="hidden sm:inline">{isConnected ? '实时同步' : '已断开'}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -355,8 +368,8 @@ export default function HomePage() {
 
       {/* 主内容区 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 侧边栏 */}
-        <aside className="w-64 flex-shrink-0">
+        {/* 侧边栏 - 桌面端 */}
+        <aside className="w-64 flex-shrink-0 hidden lg:block">
           <Sidebar
             categories={categories}
             tags={tags}
@@ -371,6 +384,40 @@ export default function HomePage() {
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
           />
         </aside>
+
+        {/* 移动端侧边栏抽屉 */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="left" className="w-80 p-0">
+            <Sidebar
+              categories={categories}
+              tags={tags}
+              selectedCategory={selectedCategory}
+              selectedTags={selectedTags}
+              selectedDate={selectedDate}
+              searchQuery={searchQuery}
+              onCategoryChange={(category) => {
+                setSelectedCategory(category)
+                setSidebarOpen(false)
+              }}
+              onTagsChange={(tags) => {
+                setSelectedTags(tags)
+                setSidebarOpen(false)
+              }}
+              onDateSelect={(date) => {
+                setSelectedDate(date)
+                setSidebarOpen(false)
+              }}
+              onSearchChange={(query) => {
+                setSearchQuery(query)
+                setSidebarOpen(false)
+              }}
+              onShowSummaryHistory={() => {
+                setSummaryHistorySheetOpen(true)
+                setSidebarOpen(false)
+              }}
+            />
+          </SheetContent>
+        </Sheet>
 
         {/* 笔记列表区 */}
         <main className="flex-1 flex flex-col min-w-0">
