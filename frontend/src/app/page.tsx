@@ -17,7 +17,7 @@ import { SummaryHistory } from '@/components/SummaryHistory'
 import { KnowledgeGraph } from '@/components/KnowledgeGraph'
 import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
-import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network, Menu } from 'lucide-react'
+import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History, Network, Menu, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TaskStatusSheet } from '@/components/TaskStatusSheet'
@@ -51,6 +51,23 @@ export default function HomePage() {
 
   // 移动端侧边栏
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // 桌面端侧边栏折叠状态
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState<boolean>(() => {
+    // 从 localStorage 读取保存的折叠状态
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('daily-note-sidebar-collapsed')
+      return saved === 'true'
+    }
+    return false
+  })
+
+  // 保存折叠状态到 localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('daily-note-sidebar-collapsed', String(desktopSidebarCollapsed))
+    }
+  }, [desktopSidebarCollapsed])
 
   // 总结分析面板
   const [summarySheetOpen, setSummarySheetOpen] = useState(false)
@@ -282,6 +299,20 @@ export default function HomePage() {
           >
             <Menu className="h-5 w-5" />
           </Button>
+          {/* 桌面端侧边栏折叠按钮 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden lg:flex"
+            onClick={() => setDesktopSidebarCollapsed(!desktopSidebarCollapsed)}
+            title={desktopSidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+          >
+            {desktopSidebarCollapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </Button>
           <h1 className="text-xl font-bold text-primary">Daily Note</h1>
           <span className="text-sm text-text-muted hidden sm:inline">零碎笔记自动整理系统</span>
           {/* SSE 连接状态指示器 */}
@@ -369,7 +400,7 @@ export default function HomePage() {
       {/* 主内容区 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 侧边栏 - 桌面端 */}
-        <aside className="w-64 flex-shrink-0 hidden lg:block">
+        <aside className={`${desktopSidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 hidden lg:block transition-all duration-300`}>
           <Sidebar
             categories={categories}
             tags={tags}
@@ -382,6 +413,7 @@ export default function HomePage() {
             onDateSelect={setSelectedDate}
             onSearchChange={setSearchQuery}
             onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
+            collapsed={desktopSidebarCollapsed}
           />
         </aside>
 
