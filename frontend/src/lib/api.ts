@@ -170,6 +170,7 @@ export const notesApi = {
     page?: number
     pageSize?: number
     dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
+    orderBy?: 'createdAt' | 'updatedAt' | 'importance'
   }): ApiResponseType<{ notes: NoteBlock[]; total: number }> => apiClient.get('/api/notes', { params }),
   get: (id: string): ApiResponseType<NoteBlock> => apiClient.get(`/api/notes/${id}`),
   update: (id: string, data: any): ApiResponseType<NoteBlock> => apiClient.put(`/api/notes/${id}`, data),

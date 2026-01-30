@@ -1,10 +1,10 @@
 {
   "active": true,
   "spec": "017-sort-options-for-notes-list",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 3,
+    "total": 6,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
-    "started_at": "2026-01-31T00:10:04.568668"
+    "number": 5,
+    "started_at": "2026-01-31T00:13:53.463506"
   },
-  "last_update": "2026-01-31T00:16:37.879082"
+  "last_update": "2026-01-31T00:23:17.782250"
 }
