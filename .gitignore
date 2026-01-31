@@ -8,4 +8,4 @@ target
 
 # Auto Claude data directory
 .auto-claude/
-.claude/settings.local.json
+.claude/
