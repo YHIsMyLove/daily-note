@@ -6,6 +6,9 @@ gen
 target
 *.db
 
-# Auto Claude data directory
+# Auto Claude 相关文件和目录
 .auto-claude/
-.claude/settings.local.json
+.claude/
+.auto-claude-*
+.claude_*
+__pycache__
