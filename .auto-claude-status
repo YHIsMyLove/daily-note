@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "009-note-skill",
+  "spec": "022-package-json",
   "state": "building",
   "subtasks": {
-    "completed": 20,
-    "total": 22,
+    "completed": 1,
+    "total": 20,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Integration Testing and Verification",
+    "current": "Backend Dependency Analysis and Optimization",
     "id": null,
-    "total": 5
+    "total": 4
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 21,
-    "started_at": "2026-01-30T21:25:22.602011"
+    "number": 3,
+    "started_at": "2026-01-31T10:38:46.063552"
   },
-  "last_update": "2026-01-30T22:27:00.700066"
+  "last_update": "2026-01-31T10:46:20.165566"
 }
