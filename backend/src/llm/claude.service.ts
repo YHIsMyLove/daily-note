@@ -59,15 +59,69 @@ export interface ExtractedTask {
   description?: string
   priority: 'high' | 'medium' | 'low'
   dueDate: string | null
-  actionable: boolean
+  status: 'pending' | 'completed'
+  subtasks?: ExtractedSubTask[]
+}
+
+// 提取的子任务
+export interface ExtractedSubTask {
+  title: string
+  description?: string
+  dueDate?: string | null
 }
 
 // 任务提取响应
 export interface TaskExtractionResult {
-  tasks: ExtractedTask[]
+  operations: TaskOperationAction[]
   /** 是否为降级结果（API 失败时返回的默认结果） */
   isFallback?: boolean
 }
+
+// 任务操作类型
+export type TaskOperation = 'create' | 'update' | 'delete' | 'skip'
+
+// 已有任务信息（传给 AI 的简化格式）
+export interface ExistingTask {
+  id: string
+  title: string
+  description?: string
+  status: 'PENDING' | 'COMPLETED'
+  priority: 'high' | 'medium' | 'low'
+  dueDate: string | null
+}
+
+// 创建操作
+export interface CreateOperation {
+  action: 'create'
+  task: ExtractedTask
+}
+
+// 更新操作
+export interface UpdateOperation {
+  action: 'update'
+  taskId: string
+  updates: {
+    status?: 'PENDING' | 'COMPLETED'
+    priority?: 'high' | 'medium' | 'low'
+    dueDate?: string | null
+    completedAt?: string
+  }
+}
+
+// 删除操作
+export interface DeleteOperation {
+  action: 'delete'
+  taskId: string
+}
+
+// 跳过操作
+export interface SkipOperation {
+  action: 'skip'
+  taskId: string
+}
+
+// 任务操作（联合类型）
+export type TaskOperationAction = CreateOperation | UpdateOperation | DeleteOperation | SkipOperation
 
 // 自动补全分析结果
 export interface AutoCompletionAnalysisResult {
@@ -766,90 +820,6 @@ ${(summary.summary?.insights || []).map((i: string) => `- ${i}`).join('\n') || '
   }
 
   /**
-   * 从笔记中提取任务
-   */
-  async extractTasks(content: string): Promise<TaskExtractionResult> {
-    const context = 'extractTasks'
-    const requestId = this.generateRequestId()
-    const startTime = Date.now()
-
-    try {
-      return await retryWithBackoff(
-        async () => {
-          const prompt = EXTRACT_TASKS_PROMPT.replace('{content}', content)
-
-          const message = await this.client.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 2048,
-            messages: [
-              {
-                role: 'user',
-                content: prompt,
-              },
-            ],
-          })
-
-          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-
-          if (!jsonMatch) {
-            throw new Error('Failed to extract JSON from Claude response')
-          }
-
-          const result = JSON.parse(jsonMatch[0]) as TaskExtractionResult
-
-          // 验证返回结果
-          if (!result.tasks || !Array.isArray(result.tasks)) {
-            throw new Error('Invalid task extraction result from Claude')
-          }
-
-          return { ...result, isFallback: false }
-        },
-        {
-          maxAttempts: this.maxAttempts,
-          initialDelay: this.initialDelay,
-          isRetryable: (error) => this.isRetryableError(error),
-          onRetry: (error, attempt) => {
-            this.logError(
-              context,
-              error,
-              attempt,
-              requestId,
-              {
-                contentLength: content.length,
-                contentWordCount: content.split(/\s+/).length,
-                model: 'claude-3-5-sonnet-20241022',
-                maxTokens: 2048,
-              }
-            )
-          }
-        }
-      )
-    } catch (error) {
-      const duration = Date.now() - startTime
-      this.logError(
-        context,
-        error,
-        this.maxAttempts,
-        requestId,
-        {
-          contentLength: content.length,
-          contentWordCount: content.split(/\s+/).length,
-          model: 'claude-3-5-sonnet-20241022',
-          maxTokens: 2048,
-          duration: `${duration}ms`,
-          finalFailure: true,
-        }
-      )
-      // 返回空任务列表
-      return {
-        tasks: [],
-        isFallback: true,
-      }
-    }
-  }
-
-  /**
    * 分析任务是否可以自动完成
    */
   async analyzeAutoCompletion(task: {
@@ -957,9 +927,11 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
   }
 
   /**
-   * 从文本内容中提取任务
+   * 从文本内容中提取任务（支持智能去重）
+   * @param content 笔记内容
+   * @param existingTasks 已有任务列表
    */
-  async extractTasks(content: string): Promise<TaskExtractionResult> {
+  async extractTasks(content: string, existingTasks: ExistingTask[] = []): Promise<TaskExtractionResult> {
     const context = 'extractTasks'
     const requestId = this.generateRequestId()
     const startTime = Date.now()
@@ -967,7 +939,19 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
     try {
       return await retryWithBackoff(
         async () => {
-          const prompt = EXTRACT_TASKS_PROMPT.replace('{content}', content)
+          // 格式化已有任务列表
+          let existingTasksText = '暂无已有任务'
+          if (existingTasks.length > 0) {
+            existingTasksText = existingTasks.map(t => {
+              const dueDateStr = t.dueDate ? t.dueDate : '无截止日期'
+              return `- ID: ${t.id}, 标题: "${t.title}", 状态: ${t.status}, 优先级: ${t.priority}, 截止日期: ${dueDateStr}`
+            }).join('\n')
+          }
+
+          // 替换 Prompt 中的占位符
+          const prompt = EXTRACT_TASKS_PROMPT
+            .replace('{content}', content)
+            .replace('{existingTasks}', existingTasksText)
 
           const message = await this.client.messages.create({
             model: 'claude-3-5-sonnet-20241022',
@@ -990,7 +974,7 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
           const result = JSON.parse(jsonMatch[0]) as TaskExtractionResult
 
           // 验证返回结果
-          if (!result.tasks || !Array.isArray(result.tasks)) {
+          if (!result.operations || !Array.isArray(result.operations)) {
             throw new Error('Invalid task extraction result from Claude')
           }
 
@@ -1009,6 +993,7 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
               {
                 contentLength: content.length,
                 contentWordCount: content.split(/\s+/).length,
+                existingTasksCount: existingTasks.length,
                 model: 'claude-3-5-sonnet-20241022',
                 maxTokens: 2048,
               }
@@ -1026,15 +1011,16 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
         {
           contentLength: content.length,
           contentWordCount: content.split(/\s+/).length,
+          existingTasksCount: existingTasks.length,
           model: 'claude-3-5-sonnet-20241022',
           maxTokens: 2048,
           duration: `${duration}ms`,
           finalFailure: true,
         }
       )
-      // 返回空任务列表
+      // 返回空操作列表
       return {
-        tasks: [],
+        operations: [],
         isFallback: true,
       }
     }

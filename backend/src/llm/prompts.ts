@@ -91,49 +91,233 @@ export const GENERATE_DAILY_SUMMARY_PROMPT = `
 `
 
 export const EXTRACT_TASKS_PROMPT = `
-你是任务提取助手，请从以下笔记内容中提取可执行的任务。
+你是任务分析助手，请分析笔记内容并决定对已有任务执行什么操作。
 
 笔记内容：
 {content}
 
+已有任务列表：
+{existingTasks}
+
 请严格按照以下 JSON 格式返回，不要包含任何其他文本：
 {
-  "tasks": [
+  "operations": [
     {
-      "title": "任务标题（简短明确）",
-      "description": "任务详细描述（可选）",
-      "priority": "high|medium|low",
-      "dueDate": "ISO日期字符串或null（如：2024-01-15）",
-      "actionable": true
+      "action": "create",
+      "task": {
+        "title": "任务标题（简短明确）",
+        "description": "任务详细描述（可选）",
+        "priority": "high|medium|low",
+        "dueDate": "ISO日期字符串或null（如：2024-01-15）",
+        "status": "pending|completed",
+        "subtasks": [
+          {
+            "title": "子任务标题",
+            "description": "子任务描述（可选）",
+            "dueDate": "ISO日期字符串或null"
+          }
+        ]
+      }
+    },
+    {
+      "action": "update",
+      "taskId": "任务ID",
+      "updates": {
+        "status": "PENDING|COMPLETED",
+        "completedAt": "ISO日期时间字符串（仅当status为COMPLETED时需要）"
+      }
+    },
+    {
+      "action": "delete",
+      "taskId": "任务ID"
+    },
+    {
+      "action": "skip",
+      "taskId": "任务ID"
     }
   ]
 }
 
-任务提取规则：
-- 只提取明确的可执行任务（如："完成报告"、"联系客户"、"购买物品"）
-- 忽略纯描述性内容、感受、想法记录
-- 任务标题应简短明确，使用动词开头
-- 优先级判断：
-  * high：有明确截止日期、重要紧急、影响重大
-  * medium：需要完成但不紧急、常规任务
-  * low：可选事项、参考性任务
-- 截止日期：从笔记内容中提取明确的时间信息（如"明天"、"下周"、"12月15日"），如无明确时间则返回null
-- 如果笔记中没有可执行任务，返回空数组：{"tasks": []}
+操作类型说明：
+
+1. **create**（创建新任务）：
+   - 笔记内容中新出现的任务
+   - 不能与任何已有任务匹配
+   - 必须包含完整的 task 信息
+
+2. **update**（更新已有任务）：
+   - 笔记中提到"完成了XXX"、"已做完XXX" → 将对应任务标记为 COMPLETED
+   - 任务状态发生变化，如从待办变为已完成
+   - 必须提供 taskId 和更新的字段
+
+3. **delete**（删除任务）：
+   - 笔记明确说明"不需要做XXX"、"取消XXX"、"不再需要XXX"
+   - 任务已失去意义或不再相关
+   - 谨慎使用，仅在明确表示取消时才删除
+
+4. **skip**（保持不变）：
+   - 任务没有变化，保持原样
+   - 最常见的情况
+
+任务匹配规则：
+- 优先通过任务标题的语义相似性进行匹配
+- 考虑任务描述的相似性
+- 同一个任务的表述可能略有不同（如"完成周报"和"周报撰写"）
+- 如果存在多个相似任务，选择最相关的一个
+
+任务状态判断规则：
+- **已完成**（completed/COMPLETED）：
+  * "完成"、"已完成"、"做了"、"搞定"、"解决"、"处理了"、"办了"、"弄好"
+  * "已经"、"已"等表示完成的时间标记
+  * 过去时态的表述，如"昨天发了邮件"、"上午开了会"
+- **待办**（pending/PENDING）：
+  * "需要"、"要"、"准备"、"计划"、"打算"
+  * 未来时间标记，如"明天"、"下周"、"下午3点前"
+  * 祈使句，如"完成报告"、"联系客户"
+
+优先级判断：
+- high：有明确截止日期、重要紧急、影响重大
+- medium：需要完成但不紧急、常规任务
+- low：可选事项、参考性任务
+
+截止日期提取：
+- 从笔记内容中提取明确的时间信息
+- 如"明天"、"下周"、"12月15日"
+- 如无明确时间则返回 null
+
+复杂任务拆分规则：
+- 判断标准：任务包含多个明确的步骤、有序列词、可分解为独立单元
+- 拆分结构：父任务（概括性）+ 子任务（具体步骤），最多2级
+- 子任务数量：通常2-5个，避免过度拆分
 
 示例：
-笔记："明天下午3点前完成周报，记得包含本周的项目进度和下周计划。"
-提取结果：
+
+**示例 1：首次分析（无已有任务）**
+
+输入：
+笔记："明天下午3点前完成周报"
+已有任务：[]
+
+输出：
 {
-  "tasks": [
+  "operations": [
     {
-      "title": "完成周报",
-      "description": "包含本周的项目进度和下周计划",
-      "priority": "high",
-      "dueDate": "2024-01-16",
-      "actionable": true
+      "action": "create",
+      "task": {
+        "title": "完成周报",
+        "priority": "high",
+        "dueDate": "2024-01-16",
+        "status": "pending",
+        "subtasks": []
+      }
     }
   ]
 }
+
+**示例 2：更新状态（已有任务）**
+
+输入：
+笔记："今天完成了周报撰写"
+已有任务：
+- ID: task-1, 标题: "完成周报", 状态: PENDING
+
+输出：
+{
+  "operations": [
+    {
+      "action": "update",
+      "taskId": "task-1",
+      "updates": {
+        "status": "COMPLETED",
+        "completedAt": "2024-01-15T18:00:00Z"
+      }
+    }
+  ]
+}
+
+**示例 3：混合场景**
+
+输入：
+笔记："今天完成了周报。明天下午3点前完成月度总结。客户会议取消了。"
+已有任务：
+- ID: task-1, 标题: "完成周报", 状态: PENDING
+- ID: task-2, 标题: "客户会议", 状态: PENDING
+- ID: task-3, 标题: "代码审查", 状态: PENDING
+
+输出：
+{
+  "operations": [
+    {
+      "action": "update",
+      "taskId": "task-1",
+      "updates": {
+        "status": "COMPLETED",
+        "completedAt": "2024-01-15T18:00:00Z"
+      }
+    },
+    {
+      "action": "create",
+      "task": {
+        "title": "月度总结",
+        "priority": "high",
+        "dueDate": "2024-01-16",
+        "status": "pending",
+        "subtasks": []
+      }
+    },
+    {
+      "action": "delete",
+      "taskId": "task-2"
+    },
+    {
+      "action": "skip",
+      "taskId": "task-3"
+    }
+  ]
+}
+
+**示例 4：复杂任务拆分**
+
+输入：
+笔记："明天下午3点前完成周报，需要收集本周项目进度、整理下周计划、制作数据图表。"
+已有任务：[]
+
+输出：
+{
+  "operations": [
+    {
+      "action": "create",
+      "task": {
+        "title": "完成周报",
+        "description": "收集项目进度、整理计划、制作图表",
+        "priority": "high",
+        "dueDate": "2024-01-16",
+        "status": "pending",
+        "subtasks": [
+          {
+            "title": "收集本周项目进度",
+            "description": "向各项目负责人收集进度更新"
+          },
+          {
+            "title": "整理下周计划",
+            "description": "汇总各项目下周的工作安排"
+          },
+          {
+            "title": "制作数据图表",
+            "description": "根据收集的数据制作可视化图表"
+          }
+        ]
+      }
+    }
+  ]
+}
+
+注意事项：
+- 每个已有任务最多对应一个操作
+- 如果笔记中没有提到某个已有任务，使用 skip 保持不变
+- 如果笔记没有任务相关内容，返回空数组 {"operations": []}
+- 完成时间使用当前时间（ISO格式）
+- 已完成任务不应该被删除（除非用户明确取消）
 `
 
 export const AUTO_COMPLETION_ANALYSIS_PROMPT = `
