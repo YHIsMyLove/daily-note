@@ -1,0 +1,38 @@
+{
+  "name": "daily-note",
+  "version": "1.0.0",
+  "private": true,
+  "description": "零碎笔记自动整理系统 - Daily Note",
+  "scripts": {
+    "dev": "pnpm --filter backend dev & pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "build:backend": "pnpm --filter backend build:exe",
+    "build:frontend": "pnpm --filter frontend build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "db:migrate": "pnpm --filter backend db:migrate",
+    "db:push": "pnpm --filter backend db:push",
+    "db:studio": "pnpm --filter backend db:studio",
+    "db:generate": "pnpm --filter backend db:generate"
+  },
+  "keywords": [
+    "note-taking",
+    "daily-note",
+    "tauri",
+    "nextjs",
+    "claude-api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
