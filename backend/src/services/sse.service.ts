@@ -21,6 +21,11 @@ export type SSEEventType =
   | 'todo.created'
   | 'todo.updated'
   | 'todo.deleted'
+  | 'note.created'
+  | 'note.updated'
+  | 'note.deleted'
+  | 'note.restored'
+  | 'note.permanent_deleted'
 
 /**
  * SSE 事件数据
@@ -30,6 +35,7 @@ export interface SSEEventData {
   todoId?: string
   type?: string
   noteId?: string
+  note?: any  // NoteBlock 对象
   status?: string
   result?: any
   error?: string

@@ -5,7 +5,7 @@
  * - 任务入队/出队（FIFO + 优先级）
  * - 并发控制（信号量模式）
  * - 事件驱动：入队后立即执行，任务完成后检查剩余任务
- * - 服务重启时自动恢复 RUNNING 任务
+ * - 服务重启时将 RUNNING 任务标记为 FAILED（避免自动执行）
  * - SSE 实时推送任务状态变化
  * - 自动重试失败的队列任务（指数退避）
  */
@@ -104,6 +104,7 @@ export class QueueManager {
 
   /**
    * 恢复正在运行的任务（服务重启时调用）
+   * 将 RUNNING 任务标记为 FAILED，避免重启后自动执行
    */
   private async recoverRunningTasks() {
     try {
@@ -112,20 +113,18 @@ export class QueueManager {
       })
 
       if (runningTasks.length > 0) {
-        console.log(`[Queue] Recovering ${runningTasks.length} running tasks...`)
+        console.log(`[Queue] Found ${runningTasks.length} interrupted tasks, marking as FAILED...`)
 
-        for (const task of runningTasks) {
-          await prisma.claudeTask.update({
-            where: { id: task.id },
-            data: {
-              status: 'PENDING',
-              error: 'Task recovered after server restart',
-              startedAt: null,
-            },
-          })
-        }
+        await prisma.claudeTask.updateMany({
+          where: { status: 'RUNNING' },
+          data: {
+            status: 'FAILED',
+            error: '任务被中断：服务重启',
+            completedAt: new Date(),
+          },
+        })
 
-        console.log('[Queue] All running tasks have been reset to PENDING')
+        console.log('[Queue] All running tasks have been marked as FAILED')
       }
     } catch (error) {
       console.error('[Queue] Error recovering running tasks:', error)
@@ -141,6 +140,33 @@ export class QueueManager {
     noteId?: string,
     priority: number = 0
   ) {
+    // 检查是否已存在相同类型和 noteId 的待处理或运行中任务
+    if (noteId) {
+      const existingTask = await prisma.claudeTask.findFirst({
+        where: {
+          type,
+          noteId,
+          status: {
+            in: ['PENDING', 'RUNNING'],
+          },
+        },
+      })
+
+      if (existingTask) {
+        console.log(`[Queue] Task already exists, skipping: ${type} for note ${noteId}`)
+
+        // SSE 推送：任务已存在
+        await sseService.broadcast('task.duplicate', {
+          taskId: existingTask.id,
+          type,
+          noteId,
+          status: existingTask.status,
+        })
+
+        return existingTask
+      }
+    }
+
     const task = await prisma.claudeTask.create({
       data: {
         type,
