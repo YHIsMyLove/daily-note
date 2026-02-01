@@ -27,6 +27,8 @@ import {
   Summary,
   SummaryComparison,
   SummaryHistoryFilters,
+  TimelineResponse,
+  TimelineGroupBy,
   Todo,
   CreateTodoRequest,
   UpdateTodoRequest,
@@ -39,6 +41,7 @@ import {
   TodoStats,
   GraphData,
   GraphFilters,
+  DateRangeInput,
 } from '@daily-note/shared'
 
 // API 响应类型（后端返回格式）
@@ -253,6 +256,10 @@ export const apiClient = new Proxy({} as AxiosInstance, {
 export const notesApi = {
   create: (content: string, date?: Date, options?: { category?: string; tags?: string[]; importance?: number }): ApiResponseType<NoteBlock> =>
     apiClient.post('/api/notes', { content, date, ...options }),
+  /**
+   * @deprecated 使用 searchWithFilters 或 listByRange 替代
+   * 旧版列表查询 API，向后兼容但推荐使用新方法
+   */
   list: (params?: {
     date?: Date
     category?: string
@@ -261,6 +268,79 @@ export const notesApi = {
     pageSize?: number
     dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
   }): ApiResponseType<{ notes: NoteBlock[]; total: number }> => apiClient.get('/api/notes', { params }),
+  /**
+   * 按时间范围查询笔记
+   */
+  listByRange: (params: {
+    dateRange: DateRangeInput
+    category?: string
+    tags?: string[]
+    page?: number
+    pageSize?: number
+  }): ApiResponseType<{ notes: NoteBlock[]; total: number }> => {
+    // 将嵌套对象转换为查询参数格式
+    const queryParams: Record<string, string> = {}
+    queryParams['dateRange[mode]'] = params.dateRange.mode
+    if (params.dateRange.value) {
+      queryParams['dateRange[value]'] = params.dateRange.value
+    }
+    if (params.dateRange.startDate) {
+      queryParams['dateRange[startDate]'] = params.dateRange.startDate
+    }
+    if (params.dateRange.endDate) {
+      queryParams['dateRange[endDate]'] = params.dateRange.endDate
+    }
+    if (params.category) {
+      queryParams['category'] = params.category
+    }
+    if (params.tags && params.tags.length > 0) {
+      params.tags.forEach((tag) => {
+        // 使用数组方式传递 tags
+        queryParams['tags'] = tag
+      })
+    }
+    if (params.page) {
+      queryParams['page'] = String(params.page)
+    }
+    if (params.pageSize) {
+      queryParams['pageSize'] = String(params.pageSize)
+    }
+    return apiClient.get('/api/notes', { params: queryParams })
+  },
+  /**
+   * 关键字搜索 + 筛选条件联合查询
+   */
+  searchWithFilters: (
+    keyword: string,
+    filters?: {
+      dateRange?: DateRangeInput
+      category?: string
+      tags?: string[]
+    }
+  ): ApiResponseType<{ notes: NoteBlock[]; total: number }> => {
+    const queryParams: Record<string, string> = { keyword }
+    if (filters?.dateRange) {
+      queryParams['dateRange[mode]'] = filters.dateRange.mode
+      if (filters.dateRange.value) {
+        queryParams['dateRange[value]'] = filters.dateRange.value
+      }
+      if (filters.dateRange.startDate) {
+        queryParams['dateRange[startDate]'] = filters.dateRange.startDate
+      }
+      if (filters.dateRange.endDate) {
+        queryParams['dateRange[endDate]'] = filters.dateRange.endDate
+      }
+    }
+    if (filters?.category) {
+      queryParams['category'] = filters.category
+    }
+    if (filters?.tags && filters.tags.length > 0) {
+      filters.tags.forEach((tag) => {
+        queryParams['tags'] = tag
+      })
+    }
+    return apiClient.get('/api/notes', { params: queryParams })
+  },
   get: (id: string): ApiResponseType<NoteBlock> => apiClient.get(`/api/notes/${id}`),
   update: (id: string, data: any): ApiResponseType<NoteBlock> => apiClient.put(`/api/notes/${id}`, data),
   delete: (id: string): ApiResponseType<void> => apiClient.delete(`/api/notes/${id}`),
@@ -272,6 +352,10 @@ export const notesApi = {
   permanentDelete: (id: string): ApiResponseType<void> => apiClient.delete(`/api/notes/${id}/permanent`),
   // 获取回收站列表
   getTrash: (): ApiResponseType<NoteBlock[]> => apiClient.get('/api/notes/trash'),
+  /**
+   * @deprecated 使用 searchWithFilters 替代
+   * 旧版搜索 API，向后兼容但推荐使用新方法
+   */
   search: (query: string): ApiResponseType<NoteBlock[]> => apiClient.get('/api/notes/search', { params: { q: query } }),
   getRelated: (id: string): ApiResponseType<NoteBlock[]> => apiClient.get(`/api/notes/${id}/related`),
   analyze: (id: string): ApiResponseType<NoteBlock> => apiClient.post(`/api/notes/${id}/analyze`),
@@ -282,6 +366,11 @@ export const notesApi = {
  */
 export const categoriesApi = {
   list: (): ApiResponseType<Category[]> => apiClient.get('/api/categories'),
+  create: (name: string, color?: string): ApiResponseType<Category> =>
+    apiClient.post('/api/categories', { name, color }),
+  update: (id: string, data: { name?: string; color?: string }): ApiResponseType<Category> =>
+    apiClient.put(`/api/categories/${id}`, data),
+  delete: (id: string): ApiResponseType<void> => apiClient.delete(`/api/categories/${id}`),
   getByCategory: (category: string, params?: any): ApiResponseType<NoteBlock[]> =>
     apiClient.get(`/api/categories/${category}/notes`, { params }),
 }
@@ -291,7 +380,10 @@ export const categoriesApi = {
  */
 export const tagsApi = {
   list: (): ApiResponseType<Tag[]> => apiClient.get('/api/tags'),
-  create: (name: string): ApiResponseType<Tag> => apiClient.post('/api/tags', { name }),
+  create: (name: string, color?: string): ApiResponseType<Tag> =>
+    apiClient.post('/api/tags', { name, color }),
+  update: (id: string, data: { name?: string; color?: string }): ApiResponseType<Tag> =>
+    apiClient.put(`/api/tags/${id}`, data),
   delete: (id: string): ApiResponseType<void> => apiClient.delete(`/api/tags/${id}`),
   cleanup: (): ApiResponseType<{ deletedCount: number; deletedTags: Tag[] }> =>
     apiClient.post('/api/tags/cleanup'),
@@ -379,7 +471,7 @@ export const summariesApi = {
     apiClient.delete(`/api/summaries/${id}`),
   stats: (): ApiResponseType<{ total: number; byMode: { day: number; week: number; month: number; year: number; custom: number } }> =>
     apiClient.get('/api/summaries/stats'),
-  // 总结历史相关 API（新增）
+  // 总结历史相关 API
   history: (filters?: SummaryHistoryFilters): ApiResponseType<Summary[]> =>
     apiClient.get('/api/summaries/history', { params: filters }),
   getRecord: (id: string): ApiResponseType<Summary> =>
@@ -388,6 +480,13 @@ export const summariesApi = {
     apiClient.get(`/api/summaries/${id}/compare`, { params: { compareId } }),
   deleteRecord: (id: string): ApiResponseType<{ message: string }> =>
     apiClient.delete(`/api/summaries/record/${id}`),
+  // 时间线 API（新增）
+  timeline: (params?: {
+    mode?: string
+    groupBy?: TimelineGroupBy
+    limit?: number
+  }): ApiResponseType<TimelineResponse> =>
+    apiClient.get('/api/summaries/timeline', { params }),
 }
 
 /**
@@ -418,6 +517,13 @@ export const todosApi = {
     apiClient.get(`/api/todos/note/${noteId}`),
   permanentDelete: (id: string): ApiResponseType<{ message: string }> =>
     apiClient.delete(`/api/todos/${id}/permanent`),
+  // 子任务相关 API
+  getSubTasks: (parentId: string): ApiResponseType<Todo[]> =>
+    apiClient.get(`/api/todos/${parentId}/subtasks`),
+  createSubTask: (parentId: string, data: { title: string; description?: string; dueDate?: Date }): ApiResponseType<Todo> =>
+    apiClient.post(`/api/todos/${parentId}/subtasks`, data),
+  getTree: (id: string): ApiResponseType<Todo> =>
+    apiClient.get(`/api/todos/${id}/tree`),
 }
 
 /**

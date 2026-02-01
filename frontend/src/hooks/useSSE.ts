@@ -112,8 +112,7 @@ export function useSSE(
       console.log('[SSE] Task created:', data)
       if (mounted) {
         setEvents((prev) => [...prev, { ...data, eventType: 'task.created' }])
-        // 刷新任务统计
-        queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
+        // 不刷新任务统计，等待 stats.updated 事件
       }
     })
 
@@ -122,8 +121,7 @@ export function useSSE(
       console.log('[SSE] Task started:', data)
       if (mounted) {
         setEvents((prev) => [...prev, { ...data, eventType: 'task.started' }])
-        // 刷新任务统计
-        queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
+        // 不刷新任务统计，等待 stats.updated 事件
         callbacksRef.current?.onTaskStarted?.(data)
       }
     })
@@ -133,9 +131,8 @@ export function useSSE(
       console.log('[SSE] Task completed:', data)
       if (mounted) {
         setEvents((prev) => [...prev, { ...data, eventType: 'task.completed' }])
-        // 刷新笔记列表和任务统计
-        queryClient.invalidateQueries({ queryKey: ['notes'] })
-        queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
+        // 移除 invalidateQueries，由回调函数统一处理数据刷新
+        // 避免与 page.tsx 中的 loadData() 双重刷新
         callbacksRef.current?.onTaskCompleted?.(data)
       }
     })
@@ -156,8 +153,7 @@ export function useSSE(
       console.log('[SSE] Task cancelled:', data)
       if (mounted) {
         setEvents((prev) => [...prev, { ...data, eventType: 'task.cancelled' }])
-        // 刷新任务统计
-        queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
+        // 不刷新任务统计，等待 stats.updated 事件
       }
     })
 
