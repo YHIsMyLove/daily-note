@@ -5,6 +5,9 @@ dist
 gen
 target
 *.db
+.env
+.env.local
+.env.production
 
 # Auto Claude 相关文件和目录
 .auto-claude/
