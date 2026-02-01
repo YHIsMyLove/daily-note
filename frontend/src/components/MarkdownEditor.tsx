@@ -242,9 +242,9 @@ export function MarkdownEditor({
       </Card>
 
       {/* 编辑器区域 */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden bg-background">
         <div className="h-full max-w-5xl mx-auto p-6">
-          <Card className="h-full border-border/50 shadow-lg overflow-hidden">
+          <Card className="h-full border-border bg-card shadow-lg overflow-hidden">
             <div className="h-full">
               <MDXEditor
                 ref={editorRef}
@@ -252,8 +252,8 @@ export function MarkdownEditor({
                 onChange={handleChange}
                 placeholder={placeholder}
                 disabled={disabled || loading}
-                className="h-full dark:prose-invert max-w-none"
-                contentEditableClassName="min-h-[500px] p-4 focus:outline-none"
+                className="h-full"
+                contentEditableClassName="prose prose-lg dark:prose-invert max-w-none min-h-[500px] p-6 focus:outline-none text-text-primary leading-relaxed"
                 plugins={[
                   headingsPlugin(),
                   listsPlugin(),

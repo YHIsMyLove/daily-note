@@ -284,7 +284,7 @@ export function getMarkdownStats(markdown: string): {
     codes: (markdown.match(/```/g) || []).length / 2, // 代码块成对出现
     links: (markdown.match(/\[([^\]]+)\]\([^)]+\)/g) || []).length,
     images: (markdown.match(/!\[([^\]]*)\]\([^)]+\)/g) || []).length,
-    wordCount: markdown.trim().split(/\s+/).filter(Boolean).length,
+    wordCount: markdown.replace(/\s/g, '').length, // 统计所有非空白字符
   }
 }
 

@@ -9,7 +9,10 @@ import { NoteBlock, UpdateNoteRequest } from '@daily-note/shared'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
 import { formatDateTime, formatRelativeTime } from '@/lib/utils'
-import { Link2, Star, MoreVertical, Edit2, Sparkles, Trash2, Loader2 } from 'lucide-react'
+import { Link2, Star, MoreVertical, Edit2, Edit3, Sparkles, Trash2, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { MarkdownViewer } from './MarkdownViewer'
+import { isLongFormNote } from '@/lib/note-utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,11 +47,19 @@ const sentimentIcons: Record<string, string> = {
 
 export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, onTaskRefresh, onRelatedNotesClick, isEditing, onEditStart, onEditEnd }: NoteCardProps) {
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
   const categoryColor = getCategoryColorClass(note.category || '其他')
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onEditStart?.(note.id)
+
+    // 长笔记跳转到编辑页面
+    if (isLongFormNote(note)) {
+      router.push(`/notes/${note.id}/edit`)
+    } else {
+      // 短笔记使用行内编辑
+      onEditStart?.(note.id)
+    }
   }
 
   const handleAnalyze = (e: React.MouseEvent) => {
@@ -119,8 +130,8 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
       className="hover:shadow-card-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group bg-background-card/80 backdrop-blur-sm shadow-card p-4 relative"
       onClick={onClick}
     >
-      {/* 操作按钮 - 始终显示 */}
-      <div className="absolute top-2 right-2 z-10">
+      {/* 操作按钮 - 仅在 hover 时显示 */}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -129,8 +140,12 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onClick={handleEdit}>
-              <Edit2 className="h-4 w-4 mr-2" />
-              编辑
+              {isLongFormNote(note) ? (
+                <Edit3 className="h-4 w-4 mr-2" />
+              ) : (
+                <Edit2 className="h-4 w-4 mr-2" />
+              )}
+              {isLongFormNote(note) ? '长笔记编辑' : '编辑'}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleAnalyze}>
               <Sparkles className="h-4 w-4 mr-2" />
@@ -158,20 +173,6 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
               {sentimentIcons[note.sentiment]}
             </span>
           )}
-          {/* 匹配来源标记 */}
-          {note.matchSource && (
-            <Badge
-              variant="outline"
-              className={`text-xs px-1.5 py-0.5 ${
-                note.matchSource === 'createdAt'
-                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                  : 'bg-green-500/20 text-green-400 border-green-500/30'
-              }`}
-              title={note.matchSource === 'createdAt' ? '通过创建时间匹配' : '通过更新时间匹配'}
-            >
-              {note.matchSource === 'createdAt' ? '创建' : '更新'}
-            </Badge>
-          )}
         </div>
         <div className="flex flex-col items-end gap-0.5">
           {/* 主时间：更新时间 */}
@@ -197,9 +198,11 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
         )}
 
         {/* 内容主体 */}
-        <p className="text-sm text-text-primary whitespace-pre-wrap break-words leading-relaxed line-clamp-3">
-          {note.content}
-        </p>
+        <MarkdownViewer
+          content={note.content}
+          className="!line-clamp-3"
+          maxLines={3}
+        />
 
         {/* 底部元信息：标签 + 重要性 + 关联 + 字数 */}
         <div className="flex items-center gap-2 text-xs text-text-muted flex-wrap pt-1">
@@ -238,9 +241,7 @@ export function NoteCard({ note, onClick, onAnalyze, onDelete, onUpdateSuccess, 
           )}
 
           {/* 字数 */}
-          {note.metadata?.wordCount && (
-            <span>{note.metadata.wordCount}字</span>
-          )}
+          <span>{note.content.replace(/\s/g, '').length}字</span>
         </div>
       </div>
     </Card>
