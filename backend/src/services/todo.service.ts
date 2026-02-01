@@ -4,6 +4,7 @@
  */
 import { prisma } from '../database/prisma'
 import { queueManager } from '../queue/queue-manager'
+import { noteService } from './note.service'
 import {
   Todo,
   CreateTodoRequest,
@@ -17,25 +18,96 @@ import {
 
 export class TodoService {
   /**
+   * 根据截止日期计算优先级（紧迫度）
+   * 规则：
+   * - 已逾期 (dueDate < now) -> URGENT
+   * - 24小时内到期 -> HIGH
+   * - 3天内到期 -> MEDIUM
+   * - 3天及以后 / 无dueDate -> LOW
+   */
+  calculatePriority(dueDate?: Date): TodoPriority {
+    if (!dueDate) return 'LOW'
+
+    const now = new Date()
+    const diffMs = dueDate.getTime() - now.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+
+    if (diffMs < 0) return 'URGENT'           // 已逾期
+    if (diffHours < 24) return 'HIGH'         // 24小时内
+    if (diffHours < 72) return 'MEDIUM'       // 3天内
+    return 'LOW'                              // 3天及以后
+  }
+
+  /**
    * 创建 Todo
    */
   async createTodo(data: CreateTodoRequest, isAiGenerated: boolean = false): Promise<Todo> {
+    // 计算层级
+    let calculatedLevel = 0
+    if (data.parentId) {
+      const parent = await prisma.claudeTask.findUnique({
+        where: { id: data.parentId },
+      })
+      if (!parent) {
+        throw new Error('父任务不存在')
+      }
+      if (parent.level >= 2) {
+        throw new Error('最多支持3级嵌套')
+      }
+      calculatedLevel = parent.level + 1
+    }
+
+    // 如果启用自动关联且没有指定 noteId，获取或创建今日待办笔记
+    let finalNoteId = data.noteId
+    if (
+      data.autoLinkToDailyNote !== false &&
+      !finalNoteId &&
+      !isAiGenerated
+      && !data.parentId // 子任务不自动关联到每日笔记
+    ) {
+      try {
+        const dailyNote = await noteService.getOrCreateDailyTodoNote()
+        finalNoteId = dailyNote.id
+
+        // 追加待办内容到笔记
+        await noteService.appendTodoToDailyNote(finalNoteId, {
+          title: data.title,
+          description: data.description,
+        })
+      } catch (error) {
+        console.error('[TodoService] Failed to get/create daily todo note:', error)
+      }
+    }
+
+    // 自动计算优先级（如果用户没有指定）
+    const priority = data.priority || this.calculatePriority(data.dueDate)
+
+    // 确定初始状态和完成时间
+    const initialStatus = data.status || 'PENDING'
+    const todoCompletedAt = initialStatus === 'COMPLETED'
+      ? (data.completedAt || new Date())
+      : undefined
+
     const todo = await prisma.claudeTask.create({
       data: {
         type: 'todo',
         title: data.title,
         description: data.description,
-        priority: this.mapPriorityToInt(data.priority || 'MEDIUM'),
-        status: 'PENDING',
+        priority: this.mapPriorityToInt(priority),
+        status: initialStatus,
         dueDate: data.dueDate,
-        noteId: data.noteId,
+        noteId: finalNoteId,
+        parentId: data.parentId,
+        level: calculatedLevel,
         isAiGenerated,
         autoCompletionEnabled: data.autoCompletionEnabled || false,
         todoMetadata: data.metadata ? JSON.stringify(data.metadata) : null,
+        todoCompletedAt,
         payload: JSON.stringify({
           noteContent: data.noteId ? undefined : (data.description || data.title),
         }),
       },
+      include: { children: true },
     })
 
     return this.mapToTodo(todo)
@@ -185,18 +257,77 @@ export class TodoService {
   }
 
   /**
-   * 完成 Todo
+   * 完成 Todo（带级联逻辑）
+   * - 父任务完成时 -> 自动完成所有未完成的子任务
+   * - 所有子任务完成时 -> 父任务自动完成
    */
   async completeTodo(id: string, data: CompleteTodoRequest = {}): Promise<Todo> {
+    // 获取任务及其子任务
+    const currentTodo = await prisma.claudeTask.findUnique({
+      where: { id },
+      include: { children: true },
+    })
+
+    if (!currentTodo) {
+      throw new Error('Todo not found')
+    }
+
+    // 更新当前任务状态
     const todo = await prisma.claudeTask.update({
       where: { id },
       data: {
         status: 'COMPLETED',
         todoCompletedAt: data.completedAt || new Date(),
       },
+      include: { children: true },
     })
 
+    // 如果有子任务，递归完成所有未完成的子任务
+    if (currentTodo.children && currentTodo.children.length > 0) {
+      await this.completeChildrenRecursively(id)
+    }
+
+    // 如果是子任务，检查父任务是否需要自动完成
+    if (currentTodo.parentId) {
+      await this.checkParentCompletion(currentTodo.parentId)
+    }
+
     return this.mapToTodo(todo)
+  }
+
+  /**
+   * 递归完成所有子任务
+   */
+  private async completeChildrenRecursively(parentId: string): Promise<void> {
+    const children = await prisma.claudeTask.findMany({
+      where: { parentId, status: { not: 'COMPLETED' } },
+    })
+
+    for (const child of children) {
+      await this.completeTodo(child.id)
+    }
+  }
+
+  /**
+   * 检查父任务是否需要自动完成
+   * 当所有子任务都完成时，父任务自动完成
+   */
+  private async checkParentCompletion(parentId: string): Promise<void> {
+    const siblings = await prisma.claudeTask.findMany({
+      where: { parentId },
+    })
+
+    const allCompleted = siblings.every((s) => s.status === 'COMPLETED')
+
+    if (allCompleted) {
+      await prisma.claudeTask.update({
+        where: { id: parentId },
+        data: {
+          status: 'COMPLETED',
+          todoCompletedAt: new Date(),
+        },
+      })
+    }
   }
 
   /**
@@ -486,6 +617,95 @@ export class TodoService {
   }
 
   /**
+   * 获取子任务列表
+   */
+  async getSubTasks(parentId: string): Promise<Todo[]> {
+    const children = await prisma.claudeTask.findMany({
+      where: { parentId },
+      orderBy: [{ createdAt: 'asc' }],
+    })
+
+    return children.map((c) => this.mapToTodo(c))
+  }
+
+  /**
+   * 创建子任务
+   */
+  async createSubTask(parentId: string, data: { title: string; description?: string; dueDate?: Date }): Promise<Todo> {
+    const parent = await prisma.claudeTask.findUnique({
+      where: { id: parentId },
+    })
+
+    if (!parent) {
+      throw new Error('父任务不存在')
+    }
+    if (parent.level >= 2) {
+      throw new Error('最多支持3级嵌套')
+    }
+
+    return this.createTodo({
+      title: data.title,
+      description: data.description,
+      dueDate: data.dueDate,
+      parentId,
+    })
+  }
+
+  /**
+   * 获取任务树（包含所有子任务）
+   */
+  async getTodoTree(id: string): Promise<Todo | null> {
+    const buildTree = async (taskId: string): Promise<Todo | null> => {
+      const task = await prisma.claudeTask.findUnique({
+        where: { id: taskId },
+        include: { children: true },
+      })
+
+      if (!task) return null
+
+      const children = await Promise.all(
+        task.children.map((child) => buildTree(child.id))
+      )
+
+      return {
+        ...this.mapToTodo(task),
+        children: children.filter((c) => c !== null) as Todo[],
+      }
+    }
+
+    return buildTree(id)
+  }
+
+  /**
+   * 获取所有根任务（用于树形展示）
+   */
+  async getRootTasks(filters?: TodoFilters): Promise<Todo[]> {
+    const where: any = {
+      type: 'todo',
+      parentId: null,
+    }
+
+    // 应用过滤条件
+    if (filters) {
+      if (filters.status) {
+        const statuses = Array.isArray(filters.status) ? filters.status : [filters.status]
+        where.status = { in: statuses }
+      }
+      if (filters.priority) {
+        const priorities = Array.isArray(filters.priority) ? filters.priority : [filters.priority]
+        where.priority = { in: priorities.map(this.mapPriorityToInt) }
+      }
+    }
+
+    const tasks = await prisma.claudeTask.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return tasks.map((t) => this.mapToTodo(t))
+  }
+
+  /**
    * 将 Prisma ClaudeTask 映射为 Todo
    */
   private mapToTodo(task: any): Todo {
@@ -500,6 +720,8 @@ export class TodoService {
       priority: this.mapIntToPriority(task.priority),
       noteId: task.noteId || undefined,
       noteContent: payload.noteContent || undefined,
+      parentId: task.parentId || undefined,
+      level: task.level || 0,
       dueDate: task.dueDate || undefined,
       completedAt: task.todoCompletedAt || undefined,
       createdAt: task.createdAt,

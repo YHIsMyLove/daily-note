@@ -347,4 +347,81 @@ export async function todosRoutes(fastify: FastifyInstance) {
       })
     }
   })
+
+  // 获取子任务列表
+  fastify.get('/api/todos/:id/subtasks', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string }
+      const subtasks = await todoService.getSubTasks(id)
+
+      return reply.send({
+        success: true,
+        data: subtasks,
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch subtasks',
+      })
+    }
+  })
+
+  // 创建子任务
+  fastify.post('/api/todos/:id/subtasks', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string }
+      const body = request.body as { title: string; description?: string; dueDate?: string }
+
+      if (!body.title || typeof body.title !== 'string') {
+        return reply.status(400).send({
+          success: false,
+          error: 'Title is required',
+        })
+      }
+
+      const subtask = await todoService.createSubTask(id, {
+        title: body.title,
+        description: body.description,
+        dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+      })
+
+      return reply.send({
+        success: true,
+        data: subtask,
+      })
+    } catch (error: any) {
+      fastify.log.error(error)
+      return reply.status(500).send({
+        success: false,
+        error: error.message || 'Failed to create subtask',
+      })
+    }
+  })
+
+  // 获取任务树（包含所有子任务）
+  fastify.get('/api/todos/:id/tree', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string }
+      const tree = await todoService.getTodoTree(id)
+
+      if (!tree) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Todo not found',
+        })
+      }
+
+      return reply.send({
+        success: true,
+        data: tree,
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to fetch todo tree',
+      })
+    }
+  })
 }
