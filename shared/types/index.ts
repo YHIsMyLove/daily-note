@@ -13,7 +13,8 @@ export interface NoteBlock {
   deletedAt?: Date // 软删除时间戳
 
   // LLM 处理结果
-  category?: string
+  category?: string  // 分类名称（保持向后兼容，新版本使用 categoryId）
+  categoryId?: string  // 分类 ID
   tags?: string[]
   summary?: string
   sentiment?: 'positive' | 'neutral' | 'negative'
@@ -22,25 +23,42 @@ export interface NoteBlock {
   relatedNotes?: string[]
   importance?: number
 
-  // 元数据
+  // 每日待办笔记相关字段
+  isDailyTodoNote?: boolean
+  dailyTodoDate?: Date
+
+  // 元数据（支持扩展的 metadata 结构）
   metadata?: {
     wordCount?: number
+    summaryInfo?: {
+      type: 'summary'
+      mode: 'day' | 'week' | 'month' | 'year' | 'custom'
+      timeRange: {
+        startDate: string
+        endDate: string
+      }
+      taskId: string
+      previousTaskId?: string
+      generatedAt: string
+    }
+    // 其他可选字段
+    [key: string]: any
   }
-
-  // 匹配来源标记（用于日期筛选时标识是通过创建时间还是更新时间匹配）
-  matchSource?: 'createdAt' | 'updatedAt' | null
 }
 
 // 分类
 export interface Category {
+  id: string
   name: string
-  count: number
+  color?: string  // 颜色值，格式：HSL (如 "217 91% 60%") 或 HEX
+  count?: number
 }
 
 // 标签
 export interface Tag {
   id: string
   name: string
+  color?: string  // 颜色值，格式：HSL (如 "217 91% 60%") 或 HEX
   count?: number
 }
 
@@ -395,6 +413,16 @@ export interface SummaryNoteMetadata {
 // ===== 总结持久化相关类型 =====
 
 /**
+ * Todo 完成统计（简化版）
+ */
+export interface TodoCompletionStats {
+  total: number
+  completed: number
+  pending: number
+  completionRate: number
+}
+
+/**
  * 持久化的总结记录
  */
 export interface Summary {
@@ -423,6 +451,7 @@ export interface Summary {
   importanceStats: ImportanceDistribution
   taskStats: TaskCompletion
   timeStats: TimeDistribution
+  todoStats: TodoCompletionStats // 新增
 
   // 元数据
   generatedAt: Date
@@ -454,6 +483,28 @@ export interface SummaryHistoryFilters {
   year?: number
   month?: number
   limit?: number
+}
+
+/**
+ * 时间线分组方式
+ */
+export type TimelineGroupBy = 'year' | 'month'
+
+/**
+ * 时间线分组数据
+ */
+export interface TimelineGroup {
+  key: string        // 分组标识，如 "2024" 或 "2024-01"
+  label: string      // 显示标签，如 "2024年" 或 "2024年1月"
+  summaries: Summary[]
+}
+
+/**
+ * 时间线响应
+ */
+export interface TimelineResponse {
+  groups: TimelineGroup[]
+  total: number
 }
 
 // ===== Todo 相关类型 =====
@@ -532,5 +583,51 @@ export interface GraphFilters {
   minImportance?: number
   limit?: number
   sentiment?: 'positive' | 'neutral' | 'negative'
+}
+
+// ===== 笔记查询相关类型 =====
+
+/**
+ * 时间范围输入参数
+ */
+export interface DateRangeInput {
+  mode: 'day' | 'week' | 'month' | 'year' | 'custom'
+  value?: string        // YYYY-MM-DD 或 YYYY-MM 或 YYYY
+  startDate?: string    // custom 模式下的起始日期 YYYY-MM-DD
+  endDate?: string      // custom 模式下的结束日期 YYYY-MM-DD
+}
+
+/**
+ * 时间范围查询结果
+ */
+export interface DateRange {
+  startDate: Date
+  endDate: Date
+}
+
+/**
+ * 笔记查询参数
+ */
+export interface NoteQueryParams {
+  // 时间范围（新增）
+  dateRange?: DateRangeInput
+
+  // 向后兼容：单日查询
+  date?: Date
+
+  // 筛选条件
+  category?: string
+  tags?: string[]
+  keyword?: string  // 新增：关键字全文搜索
+
+  // 分页
+  page?: number
+  pageSize?: number
+
+  // 日期字段筛选模式
+  dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
+
+  // 是否包含已删除笔记
+  includeDeleted?: boolean
 }
 

@@ -25,6 +25,11 @@ export interface Todo {
   noteId?: string          // 来源笔记 ID
   noteContent?: string     // 来源笔记内容片段（用于上下文）
 
+  // 嵌套结构支持
+  parentId?: string        // 父任务 ID
+  level: number            // 层级：0=根任务, 1=子任务, 2=孙任务
+  children?: Todo[]        // 子任务列表（懒加载时可能为空）
+
   // 时间相关
   dueDate?: Date
   completedAt?: Date
@@ -57,11 +62,25 @@ export interface CreateTodoRequest {
   dueDate?: Date
   noteId?: string
   autoCompletionEnabled?: boolean
+  autoLinkToDailyNote?: boolean  // 自动关联到今日待办笔记（默认 true）
+  status?: TodoStatus  // 任务状态（默认 PENDING，可用于创建已完成任务）
+  completedAt?: Date   // 完成时间（当 status 为 COMPLETED 时使用）
   metadata?: {
     estimatedTime?: number
     complexity?: 'simple' | 'medium' | 'complex'
     tags?: string[]
   }
+  parentId?: string  // 父任务 ID，用于创建子任务
+}
+
+/**
+ * 创建子任务请求
+ */
+export interface CreateSubTaskRequest {
+  title: string
+  description?: string
+  dueDate?: Date
+  estimatedTime?: number
 }
 
 /**
