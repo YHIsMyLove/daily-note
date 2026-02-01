@@ -1,0 +1,17 @@
+[package]
+name = "daily-note"
+version = "1.0.0"
+description = "零碎笔记自动整理系统"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = ["devtools"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-devtools = "2"
