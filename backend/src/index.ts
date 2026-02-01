@@ -6,10 +6,6 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import swagger from '@fastify/swagger'
 import swaggerUI from '@fastify/swagger-ui'
-import dotenv from 'dotenv'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import fs from 'fs'
 import { notesRoutes } from './api/routes/notes'
 import { categoriesRoutes } from './api/routes/categories'
 import { statsRoutes } from './api/routes/stats'
@@ -27,30 +23,6 @@ import { executeAutoCompletion } from './queue/executors/auto-complete.executor'
 import { promptService } from './services/prompt.service'
 import { autoSummaryService } from './services/auto-summary.service'
 import { schedulerService } from './services/scheduler.service'
-
-// 获取当前文件所在目录
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// 便携式环境变量加载：从多个位置尝试加载 .env 文件
-const envPaths = [
-  path.join(process.cwd(), '.env'),           // exe 同级目录（便携模式优先）
-  path.join(__dirname, '../.env'),            // 开发环境
-  path.join(__dirname, '../../../.env'),      // 备用路径
-]
-
-let envLoaded = false
-for (const envPath of envPaths) {
-  if (fs.existsSync(envPath)) {
-    console.log(`[Config] Loading .env from: ${envPath}`)
-    dotenv.config({ path: envPath })
-    envLoaded = true
-    break
-  }
-}
-
-if (!envLoaded) {
-  console.warn('[Config] No .env file found, using default values')
-}
 
 // 创建 Fastify 实例
 const fastify = Fastify({
