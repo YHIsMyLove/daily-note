@@ -9,13 +9,12 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Card } from '../ui/card'
-import { Send, X, Folder, Tag, Eye, EyeOff } from 'lucide-react'
+import { Send, X, Folder, Tag } from 'lucide-react'
 import { CategorySelector } from './CategorySelector'
 import { TagSelector } from './TagSelector'
 import { ImportanceStars } from './ImportanceStars'
 import { UpdateNoteRequest } from '@daily-note/shared'
 import { Loader2 } from 'lucide-react'
-import { MarkdownViewer } from '../MarkdownViewer'
 
 export interface NoteEditorData {
   content: string
@@ -72,7 +71,7 @@ export function NoteEditor({
   const [category, setCategory] = useState(initialData?.category || '')
   const [tags, setTags] = useState<string[]>(initialData?.tags || [])
   const [importance, setImportance] = useState(initialData?.importance || 0)
-  const [showPreview, setShowPreview] = useState(false)
+
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -136,10 +135,10 @@ export function NoteEditor({
   const canSubmit = content.trim().length > 0 && !disabled && !loading
 
   return (
-    <Card className="border-primary/20 shadow-lg overflow-hidden focus-within:border-primary/50 transition-colors">
-      {/* 紧凑布局：padding 减小 */}
-      <div className="p-3 space-y-2">
-        {/* 内容输入区 - 紧凑模式 */}
+    <Card className="border-primary/20 shadow-lg overflow-hidden focus-within:border-primary/80 focus-within:shadow-xl focus-within:shadow-primary/10 transition-all duration-300">
+      {/* 超紧凑布局 */}
+      <div className="p-2 space-y-1.5">
+        {/* 内容输入区 - 超紧凑模式 */}
         <Textarea
           ref={textareaRef}
           value={content}
@@ -147,29 +146,17 @@ export function NoteEditor({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled || loading}
-          className="min-h-[60px] resize-none bg-transparent border-0 focus:ring-0 focus:outline-none"
+          className="min-h-[120px] resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-sm py-2 leading-relaxed placeholder:text-text-muted/60"
           rows={4}
         />
 
-        {/* Markdown 预览区域 */}
-        {showPreview && content.trim() && (
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-text-muted mb-1">预览</div>
-            <div className="bg-slate-900/30 rounded p-2 max-h-60 overflow-y-auto">
-              <MarkdownViewer
-                content={content}
-                className="text-sm"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* 选项区域 - 单行紧凑布局 */}
-          <div className="flex items-center gap-4 pt-2 border-t border-border/50 flex-wrap">
+        {/* 选项和按钮区域 - 合并到同一行 */}
+        <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/50 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             {/* 分类选择 - 紧凑版 */}
             {showCategory && (
-              <div className="flex items-center gap-2">
-                <Folder className="h-4 w-4 text-text-muted" />
+              <div className="flex items-center gap-1.5">
+                <Folder className="h-3.5 w-3.5 text-text-muted" />
                 <CategorySelector
                   value={category}
                   onChange={setCategory}
@@ -180,13 +167,13 @@ export function NoteEditor({
 
             {/* 分隔线 */}
             {(showCategory && showTags) && (
-              <div className="h-4 w-px bg-border/50" />
+              <div className="h-3.5 w-px bg-border/50" />
             )}
 
             {/* 标签选择 - 紧凑版 */}
             {showTags && (
-              <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-text-muted" />
+              <div className="flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-text-muted" />
                 <TagSelector
                   value={tags}
                   onChange={setTags}
@@ -197,7 +184,7 @@ export function NoteEditor({
 
             {/* 分隔线 */}
             {((showCategory || showTags) && showImportance) && (
-              <div className="h-4 w-px bg-border/50" />
+              <div className="h-3.5 w-px bg-border/50" />
             )}
 
             {/* 重要性选择 - 紧凑版 */}
@@ -212,35 +199,7 @@ export function NoteEditor({
             )}
           </div>
 
-        {/* 操作按钮区 - 紧凑布局 */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Markdown 预览切换按钮 */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPreview(!showPreview)}
-              disabled={disabled || loading}
-              className="h-6 px-2 text-xs text-text-muted hover:text-text-primary"
-              title={showPreview ? '隐藏预览' : '显示预览'}
-            >
-              {showPreview ? (
-                <EyeOff className="h-3.5 w-3.5 mr-1" />
-              ) : (
-                <Eye className="h-3.5 w-3.5 mr-1" />
-              )}
-              预览
-            </Button>
-
-            {/* 字数统计提示 */}
-            <span className="text-xs text-text-muted">
-              {content.length} 字 · Ctrl+Enter 提交
-              {mode === 'edit' && ' · Esc 取消'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* 取消按钮（仅编辑模式） */}
             {mode === 'edit' && onCancel && (
               <Button
@@ -248,8 +207,9 @@ export function NoteEditor({
                 size="sm"
                 onClick={handleCancel}
                 disabled={disabled || loading}
+                className="h-7 px-2 text-xs"
               >
-                <X className="h-4 w-4 mr-1" />
+                <X className="h-3.5 w-3.5 mr-1" />
                 取消
               </Button>
             )}
@@ -259,16 +219,16 @@ export function NoteEditor({
               onClick={handleSubmit}
               disabled={!canSubmit}
               size="sm"
-              className="shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 font-semibold"
+              className="h-7 px-3 text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  提交中...
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  提交中
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className="h-3.5 w-3.5 mr-1" />
                   {mode === 'create' ? '提交' : '保存'}
                 </>
               )}
