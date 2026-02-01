@@ -3,26 +3,23 @@
  */
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { NoteEditor } from '@/components/NoteEditor'
 import { NoteList } from '@/components/NoteList'
 import { Sidebar } from '@/components/Sidebar'
 import { ConfirmDialogProvider, confirmDialog } from '@/components/ConfirmDialog'
-import { SettingsSidebar } from '@/components/SettingsSidebar'
-import { SummaryMenu } from '@/components/SummaryMenu'
-import { SummaryResultSheet } from '@/components/SummaryResultSheet'
-import { SummaryHistory } from '@/components/SummaryHistory'
 import { FilterActiveIndicator } from '@/components/FilterActiveIndicator'
-import { NoteBlock, Category, Tag, ClaudeTask, SummaryAnalyzerPayload } from '@daily-note/shared'
-import { notesApi, categoriesApi, tagsApi, statsApi, tasksApi, summariesApi } from '@/lib/api'
-import { RefreshCw, ListChecks, Wifi, WifiOff, Settings, History } from 'lucide-react'
+import { RightPanelView } from '@/components/RightPanelTabBar'
+import { RightPanelContent } from '@/components/RightPanelContent'
+import { NoteBlock, Category, Tag, SummaryAnalyzerPayload, DateRangeInput } from '@daily-note/shared'
+import { notesApi, categoriesApi, tagsApi, tasksApi, summariesApi } from '@/lib/api'
+import { RefreshCw, Wifi, WifiOff, Activity, Sparkles, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { TaskStatusSheet } from '@/components/TaskStatusSheet'
-import { RelatedNotesSheet } from '@/components/RelatedNotesSheet'
 import { useSSE } from '@/hooks/useSSE'
+import { toISOLocalDate } from '@/lib/utils'
 
 export default function HomePage() {
   const queryClient = useQueryClient()
@@ -54,22 +51,39 @@ export default function HomePage() {
     setSearchQuery('')
   }
 
-  // 任务状态面板
-  const [taskSheetOpen, setTaskSheetOpen] = useState(false)
-
-  // 关联笔记面板
-  const [relatedNotesSheetOpen, setRelatedNotesSheetOpen] = useState(false)
+  // 右侧面板视图状态
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>('todos')
   const [selectedNoteId, setSelectedNoteId] = useState<string>()
+  const [selectedSummaryTaskId, setSelectedSummaryTaskId] = useState<string | null>(null)
 
-  // 设置侧边栏
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // 处理打开关联笔记（从笔记卡片点击关联图标）
+  const handleOpenRelatedNotes = (noteId: string) => {
+    setSelectedNoteId(noteId)
+    setRightPanelView('related-notes')
+  }
 
-  // 总结分析面板
-  const [summarySheetOpen, setSummarySheetOpen] = useState(false)
-  const [currentSummaryTaskId, setCurrentSummaryTaskId] = useState<string | null>(null)
+  // 处理总结分析，返回 taskId 用于切换到总结结果视图
+  const handleSummaryAnalyze = async (
+    payload: SummaryAnalyzerPayload
+  ): Promise<{ taskId: string } | null> => {
+    try {
+      const response = await summariesApi.create(payload)
+      if (response.data?.taskId) {
+        return response.data
+      }
+      return null
+    } catch (error) {
+      console.error('Failed to create summary:', error)
+      alert('创建总结失败，请稍后重试')
+      return null
+    }
+  }
 
-  // 总结历史面板
-  const [summaryHistorySheetOpen, setSummaryHistorySheetOpen] = useState(false)
+  // 切换到总结结果视图
+  const handleSwitchToSummaryResult = (taskId: string) => {
+    setSelectedSummaryTaskId(taskId)
+    setRightPanelView('summary-result')
+  }
 
   // SSE 连接
   const { connectionState, isConnected } = useSSE('http://localhost:3001/api/sse', {
@@ -90,37 +104,31 @@ export default function HomePage() {
   // 计算角标数量（运行中 + 待处理）
   const badgeCount = (statsResponse?.data?.running || 0) + (statsResponse?.data?.pending || 0)
 
-  // 加载数据
+  /**
+   * 加载数据 - 使用统一的筛选 API
+   */
   const loadData = async () => {
     try {
       setLoading(true)
 
-      // 准备查询参数
-      const params: {
-        category?: string
-        tags?: string[]  // 改为数组
-        date?: Date
-        pageSize: number
-        dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
-      } = {
-        pageSize: 100,
-        dateFilterMode: 'both',  // 默认匹配创建和更新时间
-      }
-
-      if (selectedCategory) {
-        params.category = selectedCategory
-      }
-
-      if (selectedTags.length > 0) {
-        params.tags = selectedTags
-      }
-
+      // 构建时间范围参数
+      let dateRange: DateRangeInput | undefined
       if (selectedDate) {
-        params.date = selectedDate
+        dateRange = {
+          mode: 'day',
+          value: toISOLocalDate(selectedDate),
+        }
       }
 
-      // 加载笔记列表
-      const notesResponse = await notesApi.list(params)
+      // 加载笔记列表 - 使用 searchWithFilters 统一处理
+      const notesResponse = await notesApi.searchWithFilters(
+        '', // 无搜索关键字
+        {
+          dateRange,
+          category: selectedCategory,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+        }
+      )
 
       setNotes(notesResponse.data?.notes || [])
 
@@ -139,17 +147,31 @@ export default function HomePage() {
     }
   }
 
-  // 搜索笔记
+  /**
+   * 搜索笔记 - 使用统一的筛选 API
+   * @param query 搜索关键字（非空）
+   */
   const searchNotes = async (query: string) => {
-    if (!query.trim()) {
-      loadData()
-      return
-    }
-
     try {
       setLoading(true)
-      const response = await notesApi.search(query)
-      setNotes(response.data ?? [])
+
+      // 构建时间范围参数
+      let dateRange: DateRangeInput | undefined
+      if (selectedDate) {
+        dateRange = {
+          mode: 'day',
+          value: toISOLocalDate(selectedDate),
+        }
+      }
+
+      // 使用 searchWithFilters 进行搜索 + 筛选
+      const response = await notesApi.searchWithFilters(query, {
+        dateRange,
+        category: selectedCategory,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
+      })
+
+      setNotes(response.data?.notes || [])
     } catch (error) {
       console.error('Failed to search notes:', error)
     } finally {
@@ -203,20 +225,6 @@ export default function HomePage() {
     queryClient.invalidateQueries({ queryKey: ['tasks-stats'] })
   }
 
-  // 处理总结分析
-  const handleSummaryAnalyze = async (payload: SummaryAnalyzerPayload) => {
-    try {
-      const response = await summariesApi.create(payload)
-      if (response.data?.taskId) {
-        setCurrentSummaryTaskId(response.data.taskId)
-        setSummarySheetOpen(true)
-      }
-    } catch (error) {
-      console.error('Failed to create summary:', error)
-      alert('创建总结失败，请稍后重试')
-    }
-  }
-
   // 删除笔记
   const handleDeleteNote = async (note: NoteBlock) => {
     const confirmed = await confirmDialog({
@@ -243,25 +251,27 @@ export default function HomePage() {
     loadData()
   }, [])
 
-  // 监听筛选条件变化
+  // 监听筛选条件变化（分类、标签、日期）
   useEffect(() => {
-    if (searchQuery) {
-      searchNotes(searchQuery)
-    } else {
-      loadData()
-    }
+    // 如果有搜索词，由搜索的 useEffect 处理
+    if (searchQuery) return
+    loadData()
   }, [selectedCategory, selectedTags, selectedDate])
 
   // 监听搜索查询变化
   useEffect(() => {
+    // 如果没有搜索词，由上面的 useEffect 处理
+    if (!searchQuery.trim()) {
+      loadData()
+      return
+    }
+
     const timer = setTimeout(() => {
-      if (searchQuery) {
-        searchNotes(searchQuery)
-      }
+      searchNotes(searchQuery)
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [searchQuery, selectedCategory, selectedTags, selectedDate])
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -292,49 +302,53 @@ export default function HomePage() {
             onClear={handleClearFilters}
           />
         </div>
-        <div className="flex items-center gap-3">
-          <SummaryMenu
-            onAnalyze={handleSummaryAnalyze}
-            disabled={loading}
-          />
+        <div className="flex items-center gap-2">
+          {/* 任务状态按钮 */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSummaryHistorySheetOpen(true)}
-            disabled={loading}
+            onClick={() => setRightPanelView('tasks')}
+            className="gap-2"
           >
-            <History className="h-4 w-4 mr-2" />
-            历史记录
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setTaskSheetOpen(true)}
-            className="relative"
-          >
-            <ListChecks className="h-4 w-4 mr-2" />
+            <Activity className="h-4 w-4" />
             任务状态
             {badgeCount > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 min-w-5 flex items-center justify-center p-0 text-xs bg-red-500 hover:bg-red-600">
+              <Badge variant="destructive" className="h-5 min-w-5 px-1 text-xs">
                 {badgeCount > 99 ? '99+' : badgeCount}
               </Badge>
             )}
           </Button>
+
+          {/* 智能分析按钮 */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => setRightPanelView('summary')}
+            className="gap-2"
           >
-            <Settings className="h-4 w-4 mr-2" />
+            <Sparkles className="h-4 w-4" />
+            智能分析
+          </Button>
+
+          {/* 设置按钮 */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRightPanelView('settings')}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
             设置
           </Button>
+
+          {/* 刷新按钮 */}
           <Button
             variant="outline"
             size="sm"
             onClick={loadData}
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </header>
@@ -354,79 +368,65 @@ export default function HomePage() {
             onTagsChange={setSelectedTags}
             onDateSelect={setSelectedDate}
             onSearchChange={setSearchQuery}
-            onShowSummaryHistory={() => setSummaryHistorySheetOpen(true)}
           />
         </aside>
 
-        {/* 笔记列表区 */}
-        <main className="flex-1 flex flex-col min-w-0">
-          {/* 快速输入区 */}
-          <div className="p-4 border-b border-border">
-            <NoteEditor
-              mode="create"
-              onSubmit={handleCreateNote}
-              disabled={submitting}
-              loading={submitting}
-              placeholder="今天有什么想记录的？..."
-              showCategory={true}
-              showTags={true}
-              showImportance={true}
-            />
+        {/* 右侧主内容区 */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* 左侧内容区：输入框 + 笔记列表 */}
+          <div className="flex-1 flex flex-col min-w-0 border-r border-border">
+            {/* 快速输入区 */}
+            <div className="p-4 border-b border-border">
+              <NoteEditor
+                mode="create"
+                onSubmit={handleCreateNote}
+                disabled={submitting}
+                loading={submitting}
+                placeholder="今天有什么想记录的？..."
+                showCategory={true}
+                showTags={true}
+                showImportance={true}
+              />
+            </div>
+
+            {/* 笔记列表 */}
+            <div className="flex-1 overflow-hidden p-4">
+              <NoteList
+                notes={notes}
+                loading={loading}
+                emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
+                onNoteClick={(note) => {
+                  // 点击卡片不做任何操作，可以在此添加其他行为
+                }}
+                onNoteAnalyze={handleAnalyzeNote}
+                onNoteDelete={handleDeleteNote}
+                onUpdateSuccess={loadData}
+                onTaskRefresh={handleRefreshTasks}
+                onRelatedNotesClick={(note) => {
+                  // 点击关联图标时打开关联笔记面板
+                  handleOpenRelatedNotes(note.id)
+                }}
+              />
+            </div>
           </div>
 
-          {/* 笔记列表 */}
-          <div className="flex-1 overflow-hidden p-4">
-            <NoteList
-              notes={notes}
-              loading={loading}
-              emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
-              onNoteClick={(note) => {
-                // 点击卡片不做任何操作，可以在此添加其他行为
-              }}
-              onNoteAnalyze={handleAnalyzeNote}
-              onNoteDelete={handleDeleteNote}
-              onUpdateSuccess={loadData}
-              onTaskRefresh={handleRefreshTasks}
-              onRelatedNotesClick={(note) => {
-                // 点击关联图标时打开关联笔记面板
-                setSelectedNoteId(note.id)
-                setRelatedNotesSheetOpen(true)
-              }}
+          {/* 右侧标签页面板 */}
+          <aside className="w-[28rem] min-w-0 bg-background-secondary overflow-hidden flex flex-col border-l border-border">
+            <RightPanelContent
+              activeView={rightPanelView}
+              selectedNoteId={selectedNoteId}
+              selectedSummaryTaskId={selectedSummaryTaskId}
+              onOpenRelatedNotes={handleOpenRelatedNotes}
+              onBack={() => setRightPanelView('todos')}
+              onSummaryAnalyze={handleSummaryAnalyze}
+              onSwitchToSummaryResult={handleSwitchToSummaryResult}
             />
-          </div>
-        </main>
+          </aside>
+        </div>
       </div>
-
-      {/* 任务状态面板 */}
-      <TaskStatusSheet open={taskSheetOpen} onOpenChange={setTaskSheetOpen} />
-
-      {/* 关联笔记面板 */}
-      {selectedNoteId && (
-        <RelatedNotesSheet
-          open={relatedNotesSheetOpen}
-          onOpenChange={setRelatedNotesSheetOpen}
-          noteId={selectedNoteId}
-        />
-      )}
-
-      {/* 总结分析结果面板 */}
-      <SummaryResultSheet
-        open={summarySheetOpen}
-        onOpenChange={setSummarySheetOpen}
-        taskId={currentSummaryTaskId}
-      />
-
-      {/* 总结历史面板 */}
-      <SummaryHistory
-        open={summaryHistorySheetOpen}
-        onOpenChange={setSummaryHistorySheetOpen}
-      />
 
       {/* 确认对话框提供者 */}
       <ConfirmDialogProvider />
-
-      {/* 设置侧边栏 */}
-      <SettingsSidebar open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }
