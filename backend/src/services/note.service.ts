@@ -3,26 +3,40 @@
  * 处理笔记的 CRUD 操作、分类、关联等业务逻辑
  */
 import { prisma } from '../database/prisma'
-import { NoteBlock, CreateNoteRequest, UpdateNoteRequest } from '@daily-note/shared'
+import { NoteBlock, CreateNoteRequest, UpdateNoteRequest, DateRangeInput } from '@daily-note/shared'
 import { queueManager } from '../queue/queue-manager'
+import { calculateDateRange } from '../utils/date-range.util'
+import { sseService } from './sse.service'
 
 export class NoteService {
   /**
    * 创建笔记
    */
   async createNote(data: CreateNoteRequest): Promise<NoteBlock> {
-    // 1. 保存笔记到数据库
+    // 1. 如果提供了分类名称，查找或创建分类
+    let categoryId: string | undefined
+    if (data.category) {
+      const category = await prisma.category.upsert({
+        where: { name: data.category },
+        update: {},
+        create: { name: data.category },
+      })
+      categoryId = category.id
+    }
+
+    // 2. 保存笔记到数据库
     const note = await prisma.note.create({
       data: {
         content: data.content,
         date: data.date || new Date(),
-        ...(data.category && { category: data.category }),
+        ...(categoryId && { categoryId }),
         ...(data.importance && { importance: data.importance }),
         metadata: JSON.stringify({
-          wordCount: data.content.split(/\s+/).length,
+          wordCount: data.content.replace(/\s/g, '').length,
         }),
       },
       include: {
+        category: true,
         relations: {
           include: {
             to: true,
@@ -92,7 +106,12 @@ export class NoteService {
     })
 
     // 5. 返回笔记（此时可能还未完成分类）
-    return this.mapToNoteBlock(noteWithTags!)
+    const result = this.mapToNoteBlock(noteWithTags!)
+
+    // 6. 广播笔记创建事件
+    sseService.broadcast('note.created', { note: result })
+
+    return result
   }
 
   /**
@@ -100,20 +119,31 @@ export class NoteService {
    */
   async listNotes(options: {
     date?: Date
+    dateRange?: DateRangeInput
     category?: string
-    tag?: string          // 保留向后兼容
-    tags?: string[]       // 新增多标签支持
+    tag?: string
+    tags?: string[]
+    keyword?: string
     page?: number
     pageSize?: number
     includeDeleted?: boolean
-    dateFilterMode?: 'createdAt' | 'updatedAt' | 'both'
   } = {}): Promise<{ notes: NoteBlock[]; total: number }> {
-    const { date, category, tag, tags, page = 1, pageSize = 50, includeDeleted = false, dateFilterMode = 'both' } = options
+    const {
+      date,
+      dateRange,
+      category,
+      tag,
+      tags,
+      keyword,
+      page = 1,
+      pageSize = 50,
+      includeDeleted = false,
+    } = options
 
     // 统一处理标签参数（优先使用 tags，兼容 tag）
     const tagFilters = tags || (tag ? [tag] : undefined)
 
-    // 构建基础条件（不包含日期）
+    // 构建基础条件（不包含日期和关键字）
     const baseConditions: any = {}
 
     if (!includeDeleted) {
@@ -121,7 +151,9 @@ export class NoteService {
     }
 
     if (category) {
-      baseConditions.category = category
+      baseConditions.category = {
+        name: category,
+      }
     }
 
     if (tagFilters && tagFilters.length > 0) {
@@ -136,48 +168,39 @@ export class NoteService {
       }
     }
 
+    // 构建关键字搜索条件
+    const keywordCondition = keyword ? {
+      OR: [
+        { content: { contains: keyword } },
+        { summary: { contains: keyword } },
+        { category: { name: { contains: keyword } } },
+      ]
+    } : undefined
+
     const where: any = {}
 
-    if (date) {
-      const startOfDay = new Date(date)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(date)
-      endOfDay.setHours(23, 59, 59, 999)
+    // 确定使用哪个日期参数
+    let startDate: Date | undefined
+    let endDate: Date | undefined
 
-      const mode = dateFilterMode || 'both'
-
-      if (mode === 'createdAt') {
-        where.createdAt = { gte: startOfDay, lte: endOfDay }
-        Object.assign(where, baseConditions)
-      } else if (mode === 'updatedAt') {
-        where.updatedAt = { gte: startOfDay, lte: endOfDay }
-        Object.assign(where, baseConditions)
-      } else {
-        // both 模式 - OR 分支包含所有其他条件
-        // 手动构建两个完整的条件对象
-        const createdAtCondition: any = { createdAt: { gte: startOfDay, lte: endOfDay } }
-        const updatedAtCondition: any = { updatedAt: { gte: startOfDay, lte: endOfDay } }
-
-        // 复制基础条件到两个分支
-        if (baseConditions.deletedAt !== undefined) {
-          createdAtCondition.deletedAt = baseConditions.deletedAt
-          updatedAtCondition.deletedAt = baseConditions.deletedAt
-        }
-        if (baseConditions.category) {
-          createdAtCondition.category = baseConditions.category
-          updatedAtCondition.category = baseConditions.category
-        }
-        if (baseConditions.noteTags) {
-          createdAtCondition.noteTags = baseConditions.noteTags
-          updatedAtCondition.noteTags = baseConditions.noteTags
-        }
-
-        where.OR = [createdAtCondition, updatedAtCondition]
-      }
-    } else {
-      // 无日期过滤
-      Object.assign(where, baseConditions)
+    if (dateRange) {
+      // 使用时间范围参数
+      const range = calculateDateRange(dateRange)
+      startDate = range.startDate
+      endDate = range.endDate
+    } else if (date) {
+      // 使用单日参数（向后兼容）
+      startDate = new Date(date)
+      startDate.setHours(0, 0, 0, 0)
+      endDate = new Date(date)
+      endDate.setHours(23, 59, 59, 999)
     }
+
+    // 构建查询条件
+    if (startDate && endDate) {
+      where.date = { gte: startDate, lte: endDate }
+    }
+    this.assignBaseConditions(where, baseConditions, keywordCondition)
 
     const [notes, total] = await Promise.all([
       prisma.note.findMany({
@@ -186,6 +209,7 @@ export class NoteService {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
+          category: true,
           relations: {
             include: { to: true },
           },
@@ -200,34 +224,37 @@ export class NoteService {
       prisma.note.count({ where }),
     ])
 
-    // 判断每个笔记的匹配来源并添加到结果中
-    const notesWithMatchSource = notes.map((n) => {
-      let source: 'createdAt' | 'updatedAt' | undefined
-
-      if (date) {
-        const startOfDay = new Date(date)
-        startOfDay.setHours(0, 0, 0, 0)
-        const endOfDay = new Date(date)
-        endOfDay.setHours(23, 59, 59, 999)
-
-        const createdInRange = n.createdAt >= startOfDay && n.createdAt <= endOfDay
-        const updatedInRange = n.updatedAt >= startOfDay && n.updatedAt <= endOfDay
-
-        if (createdInRange && !updatedInRange) {
-          source = 'createdAt'
-        } else if (updatedInRange && !createdInRange) {
-          source = 'updatedAt'
-        } else if (createdInRange && updatedInRange) {
-          source = 'createdAt'  // 优先显示创建时间
-        }
-      }
-
-      return this.mapToNoteBlock(n, source)
-    })
-
     return {
-      notes: notesWithMatchSource,
+      notes: notes.map((n) => this.mapToNoteBlock(n)),
       total,
+    }
+  }
+
+  /**
+   * 辅助方法：将基础条件和关键字条件赋值到目标对象
+   */
+  private assignBaseConditions(
+    target: any,
+    baseConditions: any,
+    keywordCondition?: any
+  ): void {
+    if (baseConditions.deletedAt !== undefined) {
+      target.deletedAt = baseConditions.deletedAt
+    }
+    if (baseConditions.category) {
+      target.category = baseConditions.category
+    }
+    if (baseConditions.noteTags) {
+      target.noteTags = baseConditions.noteTags
+    }
+    if (keywordCondition) {
+      // 将关键字搜索的 OR 条件合并
+      if (!target.OR) {
+        target.OR = []
+      }
+      if (Array.isArray(keywordCondition.OR)) {
+        target.OR.push(...keywordCondition.OR)
+      }
     }
   }
 
@@ -238,6 +265,7 @@ export class NoteService {
     const note = await prisma.note.findUnique({
       where: { id },
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -262,12 +290,24 @@ export class NoteService {
     if (data.content !== undefined) {
       updateData.content = data.content
       updateData.metadata = JSON.stringify({
-        wordCount: data.content.split(/\s+/).length,
+        wordCount: data.content.replace(/\s/g, '').length,
       })
     }
 
+    // 处理分类更新
     if (data.category !== undefined) {
-      updateData.category = data.category
+      if (data.category === null || data.category === '') {
+        // 清空分类
+        updateData.categoryId = null
+      } else {
+        // 查找或创建分类
+        const category = await prisma.category.upsert({
+          where: { name: data.category },
+          update: {},
+          create: { name: data.category },
+        })
+        updateData.categoryId = category.id
+      }
     }
 
     if (data.importance !== undefined) {
@@ -302,6 +342,7 @@ export class NoteService {
       where: { id },
       data: updateData,
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -324,7 +365,12 @@ export class NoteService {
       )
     }
 
-    return this.mapToNoteBlock(note)
+    const result = this.mapToNoteBlock(note)
+
+    // 广播笔记更新事件
+    sseService.broadcast('note.updated', { note: result })
+
+    return result
   }
 
   /**
@@ -335,6 +381,9 @@ export class NoteService {
       where: { id },
       data: { deletedAt: new Date() },
     })
+
+    // 广播笔记删除事件
+    sseService.broadcast('note.deleted', { noteId: id })
   }
 
   /**
@@ -345,6 +394,7 @@ export class NoteService {
       where: { id },
       data: { deletedAt: null },
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -356,7 +406,12 @@ export class NoteService {
         },
       },
     })
-    return this.mapToNoteBlock(note)
+    const result = this.mapToNoteBlock(note)
+
+    // 广播笔记恢复事件
+    sseService.broadcast('note.restored', { note: result })
+
+    return result
   }
 
   /**
@@ -366,6 +421,9 @@ export class NoteService {
     await prisma.note.delete({
       where: { id },
     })
+
+    // 广播笔记永久删除事件
+    sseService.broadcast('note.permanent_deleted', { noteId: id })
   }
 
   /**
@@ -376,6 +434,7 @@ export class NoteService {
       where: { deletedAt: { not: null } },
       orderBy: { deletedAt: 'desc' },
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -406,10 +465,11 @@ export class NoteService {
         OR: [
           { content: { contains: query } },
           { summary: { contains: query } },
-          { category: { contains: query } },
+          { category: { name: { contains: query } } },
         ],
       },
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -444,6 +504,7 @@ export class NoteService {
     const notes = await prisma.note.findMany({
       where: { id: { in: relatedIds } },
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -460,7 +521,123 @@ export class NoteService {
   }
 
   /**
+   * 获取或创建指定日期的待办笔记
+   * @param date 日期（默认今天）
+   * @returns 每日待办笔记
+   */
+  async getOrCreateDailyTodoNote(date?: Date): Promise<NoteBlock> {
+    // 规范化日期为当天的 00:00:00
+    const targetDate = date || new Date()
+    const startOfDay = new Date(targetDate)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(targetDate)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    // 查询是否已存在该日期的待办笔记
+    const existing = await prisma.note.findFirst({
+      where: {
+        isDailyTodoNote: true,
+        dailyTodoDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        category: true,
+        relations: {
+          include: { to: true },
+        },
+        relatedFrom: {
+          include: { from: true },
+        },
+        noteTags: {
+          include: { tag: true },
+        },
+      },
+    })
+
+    if (existing) {
+      return this.mapToNoteBlock(existing)
+    }
+
+    // 创建新的每日待办笔记
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
+    // 查找或创建"待办"分类
+    const category = await prisma.category.upsert({
+      where: { name: '待办' },
+      update: {},
+      create: { name: '待办' },
+    })
+
+    const note = await prisma.note.create({
+      data: {
+        content: `## ${formatDate(startOfDay)} 待办汇总\n`,
+        date: startOfDay,
+        isDailyTodoNote: true,
+        dailyTodoDate: startOfDay,
+        categoryId: category.id,
+        importance: 5,
+        metadata: JSON.stringify({
+          wordCount: 0,
+          isDailyTodoNote: true,
+        }),
+      },
+      include: {
+        category: true,
+        relations: {
+          include: { to: true },
+        },
+        relatedFrom: {
+          include: { from: true },
+        },
+        noteTags: {
+          include: { tag: true },
+        },
+      },
+    })
+
+    return this.mapToNoteBlock(note)
+  }
+
+  /**
+   * 更新每日待办笔记的内容，追加新待办
+   * @param noteId 笔记 ID
+   * @param todo 待办事项
+   */
+  async appendTodoToDailyNote(noteId: string, todo: { title: string; description?: string }): Promise<void> {
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+    })
+
+    if (!note) {
+      throw new Error('Note not found')
+    }
+
+    // 追加待办内容
+    const newContent = note.content + `\n- [ ] ${todo.title}${todo.description ? `: ${todo.description}` : ''}`
+
+    await prisma.note.update({
+      where: { id: noteId },
+      data: {
+        content: newContent,
+        metadata: JSON.stringify({
+          wordCount: newContent.replace(/\s/g, '').length,
+          isDailyTodoNote: true,
+        }),
+      },
+    })
+  }
+
+  /**
    * 触发手动分析
+   *
+   * 同时创建分类和任务提取两个任务
    */
   async analyzeNote(id: string): Promise<NoteBlock> {
     const note = await prisma.note.findUnique({
@@ -471,22 +648,29 @@ export class NoteService {
       throw new Error('Note not found')
     }
 
-    // 创建分类任务
-    const task = await queueManager.enqueue(
+    // 同时创建分类任务和任务提取任务
+    const classifyTask = await queueManager.enqueue(
       'classify_note',
       { noteId: note.id, content: note.content },
       note.id,
       10 // 手动触发优先级更高
     )
 
-    // 轮询等待任务完成（最多等待 30 秒）
+    await queueManager.enqueue(
+      'extract_todo_tasks',
+      { noteId: note.id, content: note.content },
+      note.id,
+      10 // 同样的优先级
+    )
+
+    // 轮询等待分类任务完成（最多等待 30 秒）
     const maxWait = 30000
     const pollInterval = 500
     const startTime = Date.now()
 
     while (Date.now() - startTime < maxWait) {
       const updatedTask = await prisma.claudeTask.findUnique({
-        where: { id: task.id },
+        where: { id: classifyTask.id },
       })
 
       if (
@@ -503,6 +687,7 @@ export class NoteService {
     const updated = await prisma.note.findUnique({
       where: { id },
       include: {
+        category: true,
         relations: {
           include: { to: true },
         },
@@ -521,7 +706,7 @@ export class NoteService {
   /**
    * 将 Prisma Note 映射为 NoteBlock
    */
-  private mapToNoteBlock(note: any, matchSource?: 'createdAt' | 'updatedAt'): NoteBlock {
+  private mapToNoteBlock(note: any): NoteBlock {
     const metadata = note.metadata ? JSON.parse(note.metadata) : {}
 
     return {
@@ -531,7 +716,8 @@ export class NoteService {
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
       deletedAt: note.deletedAt || undefined,
-      category: note.category || undefined,
+      category: note.category?.name || undefined,
+      categoryId: note.categoryId || undefined,
       tags: note.noteTags?.map((nt: any) => nt.tag.name) || [],
       summary: note.summary || undefined,
       sentiment: note.sentiment as 'positive' | 'neutral' | 'negative' | undefined,
@@ -540,10 +726,10 @@ export class NoteService {
         ...(note.relations?.map((r: any) => r.toId) || []),
         ...(note.relatedFrom?.map((r: any) => r.fromId) || []),
       ],
-      metadata: {
-        wordCount: metadata.wordCount,
-      },
-      matchSource,  // 新增匹配来源标记
+      isDailyTodoNote: note.isDailyTodoNote || undefined,
+      dailyTodoDate: note.dailyTodoDate || undefined,
+      // 直接传递解析后的 metadata 对象，保留所有字段
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     }
   }
 }
