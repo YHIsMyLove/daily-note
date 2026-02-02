@@ -67,7 +67,7 @@ const isTauriEnv = (): boolean => {
 /**
  * 获取 API 地址（运行时动态获取）
  */
-const getApiBase = (): string => {
+export const getApiBase = (): string => {
   // 优先检测 Tauri 环境（运行时检测，此时 Tauri API 已初始化）
   if (isTauriEnv()) {
     const apiBase = process.env.NEXT_PUBLIC_LOCAL_API_URL || 'http://localhost:3001'

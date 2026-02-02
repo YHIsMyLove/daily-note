@@ -77,15 +77,17 @@ export function MarkdownViewer({ content, className = '', maxLines }: MarkdownVi
           ),
 
           // 代码样式
-          code: ({ node, inline, ...props }) =>
-            inline ? (
+          code: ({ node, ...props }) => {
+            const { inline, ...restProps } = props as { inline?: boolean; [key: string]: unknown }
+            return inline ? (
               <code
                 className="bg-slate-700/50 text-slate-300 px-1.5 py-0.5 rounded text-xs font-mono"
-                {...props}
+                {...restProps}
               />
             ) : (
-              <code className="block bg-slate-800/50 text-slate-300 p-3 rounded text-xs font-mono overflow-x-auto" {...props} />
-            ),
+              <code className="block bg-slate-800/50 text-slate-300 p-3 rounded text-xs font-mono overflow-x-auto" {...restProps} />
+            )
+          },
           pre: ({ node, ...props }) => (
             <pre className="bg-slate-800/50 p-3 rounded mb-2 overflow-x-auto" {...props} />
           ),

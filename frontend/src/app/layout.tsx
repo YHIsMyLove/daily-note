@@ -13,6 +13,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
+      <head>
+        {/* MDX Editor CSS */}
+        <link rel="stylesheet" href="/mdxeditor-style.css" />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

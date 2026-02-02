@@ -84,7 +84,6 @@ export function SummaryResultTabContent({ taskId: propTaskId }: SummaryResultTab
 
               if (task.status === 'COMPLETED' && task.result) {
                 setResult(cleanSummaryResult(task.result))
-                setCurrentSummary(detailResponse.data as Summary)
                 setLoading(false)
                 return // 任务完成，停止轮询
               }
@@ -134,7 +133,6 @@ export function SummaryResultTabContent({ taskId: propTaskId }: SummaryResultTab
 
           if (task.status === 'COMPLETED' && task.result) {
             setResult(cleanSummaryResult(task.result))
-            setCurrentSummary(detailResponse.data as Summary)
             setLoading(false)
             return // 任务完成，停止轮询
           }

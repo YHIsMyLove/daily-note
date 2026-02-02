@@ -174,7 +174,7 @@ export class SchedulerService {
     const task = await queueManager.enqueue(
       'summary_analyzer',
       payload,
-      null,  // 周总结不关联特定笔记
+      undefined,  // 周总结不关联特定笔记
       this.config.priority
     )
 
@@ -295,7 +295,7 @@ export class SchedulerService {
     const task = await queueManager.enqueue(
       'summary_analyzer',
       payload,
-      null,
+      undefined,
       this.config.priority
     )
 

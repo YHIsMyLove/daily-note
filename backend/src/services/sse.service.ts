@@ -17,10 +17,14 @@ export type SSEEventType =
   | 'task.completed'
   | 'task.failed'
   | 'task.cancelled'
+  | 'task.duplicate'
+  | 'task.retry'
   | 'stats.updated'
   | 'todo.created'
   | 'todo.updated'
   | 'todo.deleted'
+  | 'todo.completed'
+  | 'todo.auto_completion_failed'
   | 'note.created'
   | 'note.updated'
   | 'note.deleted'
@@ -34,7 +38,7 @@ export interface SSEEventData {
   taskId?: string
   todoId?: string
   type?: string
-  noteId?: string
+  noteId?: string | null
   note?: any  // NoteBlock 对象
   status?: string
   result?: any

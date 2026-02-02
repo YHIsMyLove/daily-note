@@ -161,7 +161,7 @@ export class AutoSummaryService {
     const task = await queueManager.enqueue(
       'summary_analyzer',
       payload,
-      null,  // 总结任务不关联特定笔记
+      undefined,  // 总结任务不关联特定笔记
       this.config.priority
     )
 
@@ -270,7 +270,7 @@ export class AutoSummaryService {
     const task = await queueManager.enqueue(
       'summary_analyzer',
       payload,
-      null,
+      undefined,
       this.config.priority
     )
 

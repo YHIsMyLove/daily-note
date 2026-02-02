@@ -70,7 +70,7 @@ export default async function summariesRoutes(fastify: FastifyInstance) {
     const task = await queueManager.enqueue(
       'summary_analyzer',
       payload,
-      null, // 总结任务不关联特定笔记
+      undefined, // 总结任务不关联特定笔记
       3     // 中等优先级
     )
 

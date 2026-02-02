@@ -250,7 +250,7 @@ export class ClaudeService {
     if (error.stack) {
       const stackLines = error.stack.split('\n').slice(0, 5)
       console.error(`Stack Trace (first 5 lines):`)
-      console.error(stackLines.map(line => `  ${line}`).join('\n'))
+      console.error(stackLines.map((line: string) => `  ${line}`).join('\n'))
     }
 
     console.error('='.repeat(80) + '\n')
@@ -568,9 +568,9 @@ export class ClaudeService {
           }).join('\n')
 
           // 统计情绪分布
-          const sentimentCounts = data.notes.reduce((acc, note) => {
+          const sentimentCounts = data.notes.reduce<Record<string, number>>((acc, note) => {
             const sentiment = note.sentiment || 'neutral'
-            acc[sentiment]++
+            acc[sentiment] = (acc[sentiment] || 0) + 1
             return acc
           }, { positive: 0, neutral: 0, negative: 0 })
 

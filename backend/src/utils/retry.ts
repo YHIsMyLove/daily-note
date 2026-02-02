@@ -42,7 +42,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
  * @param jitter 是否添加抖动
  * @returns 实际延迟时间（毫秒）
  */
-function calculateDelay(baseDelay: number, jitter: boolean): number {
+export function calculateDelay(baseDelay: number, jitter: boolean): number {
   if (!jitter) {
     return baseDelay
   }

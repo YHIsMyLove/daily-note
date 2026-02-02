@@ -19,6 +19,7 @@ import { RefreshCw, Wifi, WifiOff, Activity, Sparkles, Settings } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useSSE } from '@/hooks/useSSE'
+import { useBackendHealth } from '@/hooks/useBackendHealth'
 import { toISOLocalDate } from '@/lib/utils'
 
 export default function HomePage() {
@@ -92,6 +93,9 @@ export default function HomePage() {
       loadData()
     },
   })
+
+  // 后端健康检测
+  const backendHealth = useBackendHealth(30000)
 
   // 获取任务统计（通过 SSE 实时更新，无需轮询）
   const { data: statsResponse } = useQuery({
@@ -296,6 +300,39 @@ export default function HomePage() {
             )}
             <span>{isConnected ? '实时同步' : '已断开'}</span>
           </div>
+
+          {/* 后端健康状态指示器 */}
+          <div
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
+              backendHealth.isHealthy
+                ? 'bg-green-500/10 text-green-600'
+                : backendHealth.status === 'checking'
+                  ? 'bg-yellow-500/10 text-yellow-600'
+                  : 'bg-red-500/10 text-red-600'
+            }`}
+            title={`后端状态: ${backendHealth.status}${backendHealth.latency ? ` (${backendHealth.latency}ms)` : ''}`}
+          >
+            {backendHealth.isHealthy ? (
+              <>
+                <Activity className="w-3.5 h-3.5" />
+                <span>后端正常</span>
+              </>
+            ) : backendHealth.status === 'checking' ? (
+              <span>检测中...</span>
+            ) : (
+              <>
+                <WifiOff className="w-3.5 h-3.5" />
+                <span>后端离线</span>
+              </>
+            )}
+          </div>
+
+          {backendHealth.isUnhealthy && (
+            <div className="text-xs text-red-600 bg-red-500/10 px-2 py-1 rounded">
+              {backendHealth.error || '后端服务未启动'}
+            </div>
+          )}
+
           {/* 过滤器激活指示器 */}
           <FilterActiveIndicator
             hasFilters={hasFilters}

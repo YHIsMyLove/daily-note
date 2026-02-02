@@ -69,7 +69,6 @@ export async function notesRoutes(fastify: FastifyInstance) {
         category: query.category,
         tags,
         keyword: query.keyword,
-        dateFilterMode: query.dateFilterMode || 'both',
         page: query.page ? parseInt(query.page) : 1,
         pageSize: query.pageSize ? parseInt(query.pageSize) : 50,
       })

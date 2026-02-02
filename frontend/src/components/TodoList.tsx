@@ -187,7 +187,7 @@ export function TodoList({ noteId }: TodoListProps) {
       const todo = data as unknown as Todo
       setTodos((prev) => prev.filter((t) => t.id !== todo.id))
     },
-    onTodoStatsUpdated: (data: SSEEventData) => {
+    onStatsUpdated: (data: SSEEventData) => {
       setStats(data as unknown as TodoStats)
       queryClient.setQueryData(['todos-stats'], { success: true, data })
     },
@@ -222,7 +222,7 @@ export function TodoList({ noteId }: TodoListProps) {
       if (selectedPriority) query.priority = selectedPriority
 
       const [todosRes, statsRes] = await Promise.all([
-        todosApi.list(Object.keys(query).length > 0 ? query : undefined),
+        todosApi.list(Object.keys(query).length > 0 ? { filters: query } : undefined),
         todosApi.stats(),
       ])
 

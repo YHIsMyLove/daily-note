@@ -4,17 +4,17 @@
  */
 import dotenv from 'dotenv'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import fs from 'fs'
 
-// 获取当前文件所在目录
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// 获取当前文件所在目录 (CommonJS)
+const _getDirname = () => path.dirname(__filename)
+const currentDir = _getDirname()
 
 // 便携式环境变量加载：从多个位置尝试加载 .env 文件
 const envPaths = [
   path.join(process.cwd(), '.env'),           // exe 同级目录（便携模式优先）
-  path.join(__dirname, '../.env'),            // 开发环境: backend/.env
-  path.join(__dirname, '../../../.env'),      // 备用路径: 根目录
+  path.join(currentDir, '../.env'),            // 开发环境: backend/.env
+  path.join(currentDir, '../../../.env'),      // 备用路径: 根目录
 ]
 
 let envLoaded = false
@@ -36,8 +36,10 @@ console.log(`DATABASE_URL: ${process.env.DATABASE_URL || '(not set)'}`)
 console.log(`PORT: ${process.env.PORT || '3001'}`)
 console.log(`CORS_ORIGIN: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`)
 
-// 动态导入主应用（此时环境变量已加载）
-import('./index.js').catch((err) => {
+// 导入主应用（此时环境变量已加载）
+try {
+  require('./index.js')
+} catch (err) {
   console.error('Failed to start application:', err)
   process.exit(1)
-})
+}

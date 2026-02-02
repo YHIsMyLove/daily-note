@@ -27,7 +27,7 @@ import {
   CodeToggle,
   Separator,
 } from '@mdxeditor/editor'
-import '@mdxeditor/editor/style.css'
+// CSS 通过 layout 中的 link 标签导入
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Save, X, Loader2, ArrowLeft } from 'lucide-react'
@@ -107,9 +107,10 @@ export function MarkdownEditor({
 
   // 检测内容变化
   const handleChange = useCallback((newContent: string) => {
+    if (disabled || loading) return
     setContent(newContent)
     setHasChanges(newContent !== initialContent)
-  }, [initialContent])
+  }, [initialContent, disabled, loading])
 
   // 处理保存
   const handleSave = async () => {
@@ -251,8 +252,7 @@ export function MarkdownEditor({
                 markdown={content}
                 onChange={handleChange}
                 placeholder={placeholder}
-                disabled={disabled || loading}
-                className="h-full"
+                className={`h-full ${(disabled || loading) ? 'opacity-50 pointer-events-none' : ''}`}
                 contentEditableClassName="prose prose-lg dark:prose-invert max-w-none min-h-[500px] p-6 focus:outline-none text-text-primary leading-relaxed"
                 plugins={[
                   headingsPlugin(),

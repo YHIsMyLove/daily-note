@@ -8,7 +8,7 @@
     "dev:backend": "pnpm --filter backend dev",
     "dev:frontend": "pnpm --filter frontend dev",
     "build": "pnpm --filter backend build && pnpm --filter frontend build",
-    "build:backend": "pnpm --filter backend build:exe",
+    "build:backend": "pnpm --filter backend build",
     "build:frontend": "pnpm --filter frontend build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
@@ -28,6 +28,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@alloc/quick-lru": "^5.2.0",
     "@types/node": "^20.11.0",
     "typescript": "^5.3.0"
   },

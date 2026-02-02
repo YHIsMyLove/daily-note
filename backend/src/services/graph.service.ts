@@ -244,7 +244,7 @@ export class GraphService {
     })
 
     return Object.entries(distribution)
-      .map(([name, count]) => ({ name, count }))
+      .map(([name, count]) => ({ id: name, name, count }))
       .sort((a, b) => b.count - a.count)
   }
 }
