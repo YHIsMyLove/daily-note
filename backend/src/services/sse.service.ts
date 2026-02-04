@@ -30,6 +30,13 @@ export type SSEEventType =
   | 'note.deleted'
   | 'note.restored'
   | 'note.permanent_deleted'
+  // Pipeline 事件
+  | 'pipeline.started'
+  | 'pipeline.node_completed'
+  | 'pipeline.completed'
+  | 'pipeline.cancelled'
+  // Relations 事件
+  | 'relations.updated'
 
 /**
  * SSE 事件数据

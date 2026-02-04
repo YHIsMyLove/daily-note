@@ -404,6 +404,100 @@ const DEFAULT_TEMPLATES: Array<{
       },
     ],
   },
+  {
+    key: 'analyze_relations',
+    name: '关联分析',
+    description: '分析笔记之间的关联性，计算相似度',
+    systemPart: `请严格按照以下 JSON 格式返回，不要包含任何其他文本：
+{
+  "relations": [
+    {
+      "noteId": "笔记ID",
+      "similarity": 0.0-1.0的数字,
+      "reason": "关联原因（简短描述，1-2句话）"
+    }
+  ]
+}`,
+    userPart: `你是笔记关联分析助手，请分析当前笔记与候选笔记之间的关联性。
+
+当前笔记：
+标题：{currentNoteTitle}
+内容：{currentNoteContent}
+分类：{currentNoteCategory}
+标签：{currentNoteTags}
+
+候选笔记列表：
+{candidateNotesList}
+
+请严格按照以下 JSON 格式返回，不要包含任何其他文本：
+{
+  "relations": [
+    {
+      "noteId": "笔记ID（从候选笔记列表中复制）",
+      "similarity": 0.0-1.0的数字,
+      "reason": "关联原因（简短描述，1-2句话）"
+    }
+  ]
+}
+
+相似度评分标准：
+- 0.8-1.0：强关联（相同主题、延续性、因果关系、直接引用）
+- 0.5-0.7：中等关联（相关领域、引用关系、共同背景）
+- 0.2-0.4：弱关联（间接相关、时间相近、可能有关）
+- 0.0-0.1：无关联（基本无关，不建议创建关联）
+
+关联类型参考：
+- 主题延续：同一主题的不同阶段或进展
+- 因果关系：一个笔记是另一个的结果或原因
+- 引用关系：明确提及另一个笔记的内容
+- 相关领域：同一大主题下的不同方面
+- 时间相近：同一天或连续几天的相关活动
+- 共同背景：同一项目、同一会议、同一次出行等
+
+关联原因要求：
+- 简洁明了，1-2句话
+- 说明为什么这两个笔记相关
+- 帮助用户快速理解关联意义
+
+注意事项：
+- 只返回相似度 >= 0.2 的关联
+- 按相似度从高到低排序
+- 最多返回 5 个关联
+- 如果没有足够相关的笔记，返回空数组 {"relations": []}
+- noteId 必须从候选笔记列表中复制，不要自己编造`,
+    variables: [
+      {
+        name: 'currentNoteTitle',
+        description: '当前笔记标题',
+        required: true,
+        placeholder: '{currentNoteTitle}',
+      },
+      {
+        name: 'currentNoteContent',
+        description: '当前笔记内容',
+        required: true,
+        placeholder: '{currentNoteContent}',
+      },
+      {
+        name: 'currentNoteCategory',
+        description: '当前笔记分类',
+        required: false,
+        placeholder: '{currentNoteCategory}',
+      },
+      {
+        name: 'currentNoteTags',
+        description: '当前笔记标签',
+        required: false,
+        placeholder: '{currentNoteTags}',
+      },
+      {
+        name: 'candidateNotesList',
+        description: '候选笔记列表',
+        required: true,
+        placeholder: '{candidateNotesList}',
+      },
+    ],
+  },
 ]
 
 export class PromptService {

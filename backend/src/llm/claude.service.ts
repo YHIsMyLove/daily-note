@@ -136,6 +136,17 @@ export interface AutoCompletionAnalysisResult {
   isFallback?: boolean
 }
 
+// 关联分析结果
+export interface RelationAnalysisOutput {
+  relations: Array<{
+    noteId: string
+    similarity: number
+    reason: string
+  }>
+  /** 是否为降级结果 */
+  isFallback?: boolean
+}
+
 export class ClaudeService {
   private client: Anthropic
   private readonly maxAttempts: number
@@ -1101,6 +1112,124 @@ ${task.dueDate ? `截止日期: ${task.dueDate}` : '无截止日期'}
       requirements,
       risks,
       isFallback: true,
+    }
+  }
+
+  /**
+   * 分析笔记关联性
+   * @param input 包含当前笔记和候选笔记的数据
+   * @returns 关联分析结果
+   */
+  async analyzeRelations(input: {
+    currentNote: {
+      id: string
+      title: string
+      content: string
+      category?: string
+      tags: string[]
+    }
+    candidateNotes: Array<{
+      id: string
+      content: string
+      summary?: string
+      category?: string
+      tags: string[]
+      date: Date
+    }>
+  }): Promise<RelationAnalysisOutput> {
+    const context = 'analyzeRelations'
+    const requestId = this.generateRequestId()
+    const startTime = Date.now()
+
+    try {
+      return await retryWithBackoff(
+        async () => {
+          // 格式化候选笔记列表
+          const candidateNotesText = input.candidateNotes.map((n, idx) => {
+            const preview = n.content.slice(0, 150)
+            return `${idx + 1}. [ID: ${n.id}] ${n.category || '未分类'} | ${n.tags.join(', ') || '无标签'}
+日期：${n.date.toLocaleDateString('zh-CN')}
+${preview}${n.content.length > 150 ? '...' : ''}`
+          }).join('\n\n')
+
+          // 从 PromptService 获取提示词
+          const prompt = await promptService.getPrompt('analyze_relations', {
+            currentNoteTitle: input.currentNote.title,
+            currentNoteContent: input.currentNote.content,
+            currentNoteCategory: input.currentNote.category || '未分类',
+            currentNoteTags: input.currentNote.tags.join(', ') || '无',
+            candidateNotesList: candidateNotesText,
+          })
+
+          const message = await this.client.messages.create({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+          })
+
+          // 提取 JSON 响应
+          const responseText = message.content[0].type === 'text' ? message.content[0].text : ''
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+          if (!jsonMatch) {
+            throw new Error('Failed to extract JSON from Claude response')
+          }
+
+          const result = JSON.parse(jsonMatch[0]) as RelationAnalysisOutput
+
+          // 验证返回结果
+          if (!Array.isArray(result.relations)) {
+            throw new Error('Invalid relation analysis result from Claude')
+          }
+
+          return { ...result, isFallback: false }
+        },
+        {
+          maxAttempts: this.maxAttempts,
+          initialDelay: this.initialDelay,
+          isRetryable: (error) => this.isRetryableError(error),
+          onRetry: (error, attempt) => {
+            this.logError(
+              context,
+              error,
+              attempt,
+              requestId,
+              {
+                currentNoteId: input.currentNote.id,
+                candidateCount: input.candidateNotes.length,
+                model: 'claude-3-5-sonnet-20241022',
+                maxTokens: 2048,
+              }
+            )
+          }
+        }
+      )
+    } catch (error) {
+      const duration = Date.now() - startTime
+      this.logError(
+        context,
+        error,
+        this.maxAttempts,
+        requestId,
+        {
+          currentNoteId: input.currentNote.id,
+          candidateCount: input.candidateNotes.length,
+          model: 'claude-3-5-sonnet-20241022',
+          maxTokens: 2048,
+          duration: `${duration}ms`,
+          finalFailure: true,
+        }
+      )
+      // 返回空关联列表
+      return {
+        relations: [],
+        isFallback: true,
+      }
     }
   }
 }

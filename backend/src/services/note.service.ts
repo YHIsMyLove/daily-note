@@ -89,7 +89,15 @@ export class NoteService {
       5 // 优先级
     )
 
-    // 5. 重新获取包含标签的笔记
+    // 5. 将关联分析任务加入队列（优先级较低，避免影响主要功能）
+    queueManager.enqueue(
+      'analyze_relations',
+      { noteId: note.id, content: note.content },
+      note.id,
+      3 // 优先级低于分类和任务提取
+    )
+
+    // 6. 重新获取包含标签的笔记
     const noteWithTags = await prisma.note.findUnique({
       where: { id: note.id },
       include: {
@@ -486,9 +494,9 @@ export class NoteService {
   }
 
   /**
-   * 获取关联笔记
+   * 获取关联笔记（包含相似度和原因）
    */
-  async getRelatedNotes(noteId: string): Promise<NoteBlock[]> {
+  async getRelatedNotes(noteId: string): Promise<Array<NoteBlock & { similarity?: number; reason?: string }>> {
     const relations = await prisma.noteRelation.findMany({
       where: {
         OR: [{ fromId: noteId }, { toId: noteId }],
@@ -499,7 +507,21 @@ export class NoteService {
       },
     })
 
-    const relatedIds = relations.map((r) => (r.fromId === noteId ? r.toId : r.fromId))
+    // 构建关联信息映射
+    const relationMap = new Map<string, { similarity?: number; reason?: string }>()
+    for (const r of relations) {
+      const targetId = r.fromId === noteId ? r.toId : r.fromId
+      relationMap.set(targetId, {
+        similarity: r.similarity ?? undefined,
+        reason: r.reason ?? undefined,
+      })
+    }
+
+    const relatedIds = Array.from(relationMap.keys())
+
+    if (relatedIds.length === 0) {
+      return []
+    }
 
     const notes = await prisma.note.findMany({
       where: { id: { in: relatedIds } },
@@ -517,7 +539,13 @@ export class NoteService {
       },
     })
 
-    return notes.map((n) => this.mapToNoteBlock(n))
+    // 按相似度排序
+    return notes
+      .map((n) => ({
+        ...this.mapToNoteBlock(n),
+        ...relationMap.get(n.id),
+      }))
+      .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
   }
 
   /**

@@ -289,6 +289,42 @@ export async function notesRoutes(fastify: FastifyInstance) {
     }
   })
 
+  // 手动触发关联分析
+  fastify.post('/api/notes/:id/analyze-relations', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string }
+      const { queueManager } = await import('../../queue/queue-manager')
+
+      // 验证笔记是否存在
+      const note = await noteService.getNote(id)
+      if (!note) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Note not found',
+        })
+      }
+
+      // 入队关联分析任务（手动触发优先级高）
+      const task = await queueManager.enqueue(
+        'analyze_relations',
+        { noteId: id, content: note.content },
+        id,
+        10  // 手动触发优先级高于自动触发
+      )
+
+      return reply.send({
+        success: true,
+        data: { taskId: task.id },
+      })
+    } catch (error) {
+      fastify.log.error(error)
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to trigger relation analysis',
+      })
+    }
+  })
+
   // 获取或创建指定日期的待办笔记
   // date 参数格式: YYYY-MM-DD，可选，默认今天
   fastify.get('/api/notes/daily-todo/:date?', async (request, reply) => {
