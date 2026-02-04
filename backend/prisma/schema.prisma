@@ -210,3 +210,185 @@ model Summary {
   @@index([startDate])
   @@index([generatedAt])
 }
+
+// ===== 工作流配置相关模型 =====
+
+// 工作流配置（定义触发场景）
+model WorkflowConfig {
+  id          String   @id @default(uuid())
+  trigger     String   @unique  // note_created, note_updated, note_deleted, manual_analysis
+  label       String            // 显示名称
+  description String?           // 描述
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  steps       WorkflowStep[]
+  connections WorkflowConnection[]
+
+  @@index([trigger])
+  @@index([enabled])
+}
+
+// 工作流步骤（定义具体任务节点）
+model WorkflowStep {
+  id              String   @id @default(uuid())
+  workflowId      String
+  workflow        WorkflowConfig @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  taskType        String            // classify_note, extract_todo_tasks, analyze_relations, etc.
+  label           String            // 显示名称
+  enabled         Boolean   @default(true)
+  priority        Int               // 执行优先级
+  position        Int               // 在流程中的顺序位置
+  dependencies    String?           // 依赖的任务ID列表 (JSON数组)
+  config          String?           // 任务特定配置 (JSON)
+  nodeX           Int       @default(0)  // 节点在流程图中的 X 坐标
+  nodeY           Int       @default(0)  // 节点在流程图中的 Y 坐标
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // 作为源节点的连线
+  fromConnections WorkflowConnection[] @relation("FromStep")
+  // 作为目标节点的连线
+  toConnections   WorkflowConnection[] @relation("ToStep")
+
+  @@index([workflowId])
+  @@index([taskType])
+  @@index([position])
+}
+
+// 工作流连线（定义节点之间的连接关系）
+model WorkflowConnection {
+  id          String   @id @default(uuid())
+  workflowId  String
+  workflow    WorkflowConfig @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  fromStepId  String   // 源节点ID
+  toStepId    String   // 目标节点ID
+  fromStep    WorkflowStep @relation("FromStep", fields: [fromStepId], references: [id], onDelete: Cascade)
+  toStep      WorkflowStep @relation("ToStep", fields: [toStepId], references: [id], onDelete: Cascade)
+  condition   String?  // 连接条件表达式
+  createdAt   DateTime @default(now())
+
+  @@unique([workflowId, fromStepId, toStepId])
+  @@index([workflowId])
+  @@index([fromStepId])
+  @@index([toStepId])
+}
+
+// ===== Pipeline 模型（提示词管道） =====
+
+// Pipeline 配置（提示词管道）
+model Pipeline {
+  id          String   @id @default(uuid())
+  name        String   @unique  // Pipeline 名称
+  description String?            // 描述
+  trigger     String   @default("manual")  // 触发方式: manual, note_created, note_updated, etc.
+  enabled     Boolean  @default(true)
+  nodes       PipelineNode[]
+  edges       PipelineEdge[]
+  executions  PipelineExecution[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([trigger])
+  @@index([enabled])
+}
+
+// Pipeline 节点（提示词节点）
+model PipelineNode {
+  id              String   @id @default(uuid())
+  pipelineId      String
+  pipeline        Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  // 核心配置：节点引用提示词模板
+  promptKey       String   // 引用 PromptTemplate.key
+  promptName      String   // 冗余存储，用于快速显示
+
+  // 执行配置
+  enabled         Boolean  @default(true)
+  config          String?  // JSON：节点特定配置（温度、模型、最大 Token 等）
+
+  // 坐标（前端可视化）
+  nodeX           Int      @default(0)
+  nodeY           Int      @default(0)
+
+  // 关联
+  incomingEdges   PipelineEdge[] @relation("IncomingEdge")
+  outgoingEdges   PipelineEdge[] @relation("OutgoingEdge")
+  executions      PipelineNodeExecution[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([pipelineId])
+  @@index([promptKey])
+}
+
+// Pipeline 连线（数据流向）
+model PipelineEdge {
+  id          String   @id @default(uuid())
+  pipelineId  String
+  pipeline    Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  fromNodeId  String
+  toNodeId    String
+  fromNode    PipelineNode @relation("OutgoingEdge", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode      PipelineNode @relation("IncomingEdge", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  // 数据流转配置
+  outputKey   String   @default("output")  // 源节点输出键
+  inputKey    String   @default("input")   // 目标节点输入键
+  condition   String?  // 条件表达式（可选）
+
+  createdAt   DateTime @default(now())
+
+  @@unique([pipelineId, fromNodeId, toNodeId])
+  @@index([pipelineId])
+  @@index([fromNodeId])
+  @@index([toNodeId])
+}
+
+// Pipeline 执行记录
+model PipelineExecution {
+  id              String   @id @default(uuid())
+  pipelineId      String
+  pipeline        Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  triggerEvent    String              // 触发事件
+  status          String   @default("pending")  // pending, running, completed, failed, cancelled
+  inputData       String?             // JSON：输入数据
+  outputData      String?             // JSON：输出数据
+  error           String?             // 错误信息
+
+  nodeExecutions  PipelineNodeExecution[]
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([pipelineId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Pipeline 节点执行记录
+model PipelineNodeExecution {
+  id              String   @id @default(uuid())
+  executionId     String
+  execution       PipelineExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  nodeId          String
+  node            PipelineNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  status          String   @default("pending")  // pending, running, completed, failed, skipped
+  inputData       String?             // JSON：节点输入
+  outputData      String?             // JSON：节点输出
+  error           String?             // 错误信息
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([executionId])
+  @@index([nodeId])
+  @@index([status])
+}
