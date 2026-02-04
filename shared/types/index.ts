@@ -585,6 +585,47 @@ export interface GraphFilters {
   sentiment?: 'positive' | 'neutral' | 'negative'
 }
 
+// ===== 工作流相关类型 =====
+
+export type {
+  WorkflowTrigger,
+  WorkflowStep,
+  WorkflowConnection,
+  WorkflowConfig,
+  WorkflowConfigDetail,
+  TaskTypeDefinition,
+  WorkflowNode,
+  WorkflowEdge,
+  CreateWorkflowRequest,
+  UpdateWorkflowRequest,
+  CreateWorkflowStepRequest,
+  UpdateWorkflowStepRequest,
+  CreateWorkflowConnectionRequest,
+  WorkflowExport,
+  WorkflowImportRequest,
+  // Pipeline 相关类型
+  PipelineTrigger,
+  PipelineNode,
+  PipelineEdge,
+  Pipeline,
+  PipelineDetail,
+  PipelineExecutionStatus,
+  PipelineNodeExecutionStatus,
+  PipelineExecution,
+  PipelineNodeExecution,
+  CreatePipelineRequest,
+  UpdatePipelineRequest,
+  CreatePipelineNodeRequest,
+  UpdatePipelineNodeRequest,
+  CreatePipelineEdgeRequest,
+  ExecutePipelineRequest,
+  PipelineVisNode,
+  PipelineVisEdge,
+} from './workflow'
+
+// 单独导出值（常量）
+export { WorkflowTriggerLabels, PipelineTriggerLabels } from './workflow'
+
 // ===== 笔记查询相关类型 =====
 
 /**
