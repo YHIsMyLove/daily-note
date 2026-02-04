@@ -231,8 +231,12 @@ export class QueueManager {
 
     try {
       // 获取待执行任务（按优先级和创建时间排序）
+      // 注意：排除 type='todo' 的项目，因为它们是用户管理的 Todo，不是可执行的队列任务
       const tasks = await prisma.claudeTask.findMany({
-        where: { status: 'PENDING' },
+        where: {
+          status: 'PENDING',
+          type: { not: 'todo' }, // 排除 Todo 项目
+        },
         orderBy: [
           { priority: 'desc' },
           { createdAt: 'asc' },
@@ -399,9 +403,11 @@ export class QueueManager {
       const now = new Date()
 
       // 查找需要重试的任务
+      // 注意：排除 type='todo' 的项目，因为它们是用户管理的 Todo，不是队列任务
       const tasksToRetry = await prisma.claudeTask.findMany({
         where: {
           status: 'PENDING',
+          type: { not: 'todo' }, // 排除 Todo 项目
           nextRetryAt: {
             lte: now,
           },
