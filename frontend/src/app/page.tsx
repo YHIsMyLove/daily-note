@@ -11,8 +11,9 @@ import { NoteList } from '@/components/NoteList'
 import { Sidebar } from '@/components/Sidebar'
 import { ConfirmDialogProvider, confirmDialog } from '@/components/ConfirmDialog'
 import { FilterActiveIndicator } from '@/components/FilterActiveIndicator'
-import { RightPanelView } from '@/components/RightPanelTabBar'
+import { RightPanelView, RightPanelTab, RightPanelTabBar } from '@/components/RightPanelTabBar'
 import { RightPanelContent } from '@/components/RightPanelContent'
+import { WorkflowOverlay } from '@/components/workflow'
 import { NoteBlock, Category, Tag, SummaryAnalyzerPayload, DateRangeInput } from '@daily-note/shared'
 import { notesApi, categoriesApi, tagsApi, tasksApi, summariesApi } from '@/lib/api'
 import { RefreshCw, Wifi, WifiOff, Activity, Sparkles, Settings } from 'lucide-react'
@@ -29,6 +30,9 @@ export default function HomePage() {
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+
+  // 工作流覆盖层状态
+  const [isWorkflowOverlayOpen, setIsWorkflowOverlayOpen] = useState(false)
 
   // 筛选状态
   const [selectedCategory, setSelectedCategory] = useState<string>()
@@ -54,13 +58,21 @@ export default function HomePage() {
 
   // 右侧面板视图状态
   const [rightPanelView, setRightPanelView] = useState<RightPanelView>('todos')
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('todos')
   const [selectedNoteId, setSelectedNoteId] = useState<string>()
   const [selectedSummaryTaskId, setSelectedSummaryTaskId] = useState<string | null>(null)
+
+  // 处理标签页切换
+  const handleTabChange = (tab: RightPanelTab) => {
+    setRightPanelTab(tab)
+    setRightPanelView(tab)
+  }
 
   // 处理打开关联笔记（从笔记卡片点击关联图标）
   const handleOpenRelatedNotes = (noteId: string) => {
     setSelectedNoteId(noteId)
     setRightPanelView('related-notes')
+    setRightPanelTab('related-notes')
   }
 
   // 处理总结分析，返回 taskId 用于切换到总结结果视图
@@ -84,6 +96,7 @@ export default function HomePage() {
   const handleSwitchToSummaryResult = (taskId: string) => {
     setSelectedSummaryTaskId(taskId)
     setRightPanelView('summary-result')
+    setRightPanelTab('summary-result')
   }
 
   // SSE 连接
@@ -340,6 +353,17 @@ export default function HomePage() {
           />
         </div>
         <div className="flex items-center gap-2">
+          {/* 工作流设置按钮 */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsWorkflowOverlayOpen(true)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            工作流设置
+          </Button>
+
           {/* 任务状态按钮 */}
           <Button
             variant="outline"
@@ -365,17 +389,6 @@ export default function HomePage() {
           >
             <Sparkles className="h-4 w-4" />
             智能分析
-          </Button>
-
-          {/* 设置按钮 */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRightPanelView('settings')}
-            className="gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            设置
           </Button>
 
           {/* 刷新按钮 */}
@@ -433,7 +446,10 @@ export default function HomePage() {
                 loading={loading}
                 emptyMessage={searchQuery ? '未找到匹配的笔记' : '暂无笔记，开始记录吧！'}
                 onNoteClick={(note) => {
-                  // 点击卡片不做任何操作，可以在此添加其他行为
+                  // 只有当笔记有关联时才跳转到关联笔记面板
+                  if (note.relatedNotes && note.relatedNotes.length > 0) {
+                    handleOpenRelatedNotes(note.id)
+                  }
                 }}
                 onNoteAnalyze={handleAnalyzeNote}
                 onNoteDelete={handleDeleteNote}
@@ -449,12 +465,22 @@ export default function HomePage() {
 
           {/* 右侧标签页面板 */}
           <aside className="w-[28rem] min-w-0 bg-background-secondary overflow-hidden flex flex-col border-l border-border">
+            {/* 标签页栏 - 在标签页视图时显示 */}
+            {(['todos', 'summary-result', 'related-notes', 'settings'] as RightPanelTab[]).includes(rightPanelView as RightPanelTab) && (
+              <RightPanelTabBar
+                activeTab={rightPanelTab}
+                onTabChange={handleTabChange}
+              />
+            )}
             <RightPanelContent
               activeView={rightPanelView}
               selectedNoteId={selectedNoteId}
               selectedSummaryTaskId={selectedSummaryTaskId}
               onOpenRelatedNotes={handleOpenRelatedNotes}
-              onBack={() => setRightPanelView('todos')}
+              onBack={() => {
+                setRightPanelView('todos')
+                setRightPanelTab('todos')
+              }}
               onSummaryAnalyze={handleSummaryAnalyze}
               onSwitchToSummaryResult={handleSwitchToSummaryResult}
             />
@@ -464,6 +490,11 @@ export default function HomePage() {
 
       {/* 确认对话框提供者 */}
       <ConfirmDialogProvider />
+
+      {/* 工作流设置覆盖层 */}
+      {isWorkflowOverlayOpen && (
+        <WorkflowOverlay onClose={() => setIsWorkflowOverlayOpen(false)} />
+      )}
     </div>
   )
 }
