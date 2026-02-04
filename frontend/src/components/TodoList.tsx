@@ -140,8 +140,11 @@ export function TodoList({ noteId }: TodoListProps) {
     onTodoCreated: (data: SSEEventData) => {
       const todo = data as unknown as Todo
       if (noteId && todo.noteId !== noteId) return
-      const statusMatch = checkStatusMatch(selectedStatus, todo.status)
-      const priorityMatch = !selectedPriority || selectedPriority === todo.priority
+      // 防御性检查：确保 status 和 priority 存在
+      const todoStatus = todo.status || 'PENDING'
+      const todoPriority = todo.priority || 'MEDIUM'
+      const statusMatch = checkStatusMatch(selectedStatus, todoStatus)
+      const priorityMatch = !selectedPriority || selectedPriority === todoPriority
       if (statusMatch && priorityMatch) {
         setTodos((prev) => [...prev, todo])
       }
@@ -150,8 +153,11 @@ export function TodoList({ noteId }: TodoListProps) {
       const todo = data as unknown as Todo
       if (noteId && todo.noteId !== noteId) return
 
-      const statusMatch = checkStatusMatch(selectedStatus, todo.status)
-      const priorityMatch = !selectedPriority || selectedPriority === todo.priority
+      // 防御性检查：确保 status 和 priority 存在
+      const todoStatus = todo.status || 'PENDING'
+      const todoPriority = todo.priority || 'MEDIUM'
+      const statusMatch = checkStatusMatch(selectedStatus, todoStatus)
+      const priorityMatch = !selectedPriority || selectedPriority === todoPriority
 
       setTodos((prev) => {
         const exists = prev.find((t) => t.id === todo.id)
@@ -169,8 +175,10 @@ export function TodoList({ noteId }: TodoListProps) {
       const todo = data as unknown as Todo
       if (noteId && todo.noteId !== noteId) return
 
+      // 防御性检查：确保 priority 存在
+      const todoPriority = todo.priority || 'MEDIUM'
       const statusMatch = checkStatusMatch(selectedStatus, 'COMPLETED')
-      const priorityMatch = !selectedPriority || selectedPriority === todo.priority
+      const priorityMatch = !selectedPriority || selectedPriority === todoPriority
 
       setTodos((prev) => {
         if (statusMatch && priorityMatch) {
@@ -380,19 +388,19 @@ export function TodoList({ noteId }: TodoListProps) {
         <div className="flex flex-wrap gap-2 mb-3 text-[10px]">
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50">
             <Circle className="w-2.5 h-2.5 text-gray-400" />
-            <span className="text-muted-foreground">待处理: {stats.byStatus.PENDING}</span>
+            <span className="text-muted-foreground">待处理: {stats.byStatus?.PENDING ?? 0}</span>
           </div>
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50">
             <AlertCircle className="w-2.5 h-2.5 text-yellow-400" />
-            <span className="text-muted-foreground">待审核: {stats.byStatus.NEEDS_REVIEW}</span>
+            <span className="text-muted-foreground">待审核: {stats.byStatus?.NEEDS_REVIEW ?? 0}</span>
           </div>
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50">
             <Loader2 className="w-2.5 h-2.5 text-blue-400" />
-            <span className="text-muted-foreground">进行中: {stats.byStatus.RUNNING}</span>
+            <span className="text-muted-foreground">进行中: {stats.byStatus?.RUNNING ?? 0}</span>
           </div>
           <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50">
             <CheckCircle2 className="w-2.5 h-2.5 text-green-400" />
-            <span className="text-muted-foreground">已完成: {stats.byStatus.COMPLETED}</span>
+            <span className="text-muted-foreground">已完成: {stats.byStatus?.COMPLETED ?? 0}</span>
           </div>
           {stats.overdue > 0 && (
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10">
