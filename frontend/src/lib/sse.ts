@@ -23,6 +23,13 @@ export type SSEEventType =
   | 'todo.updated'
   | 'todo.deleted'
   | 'todo.completed'
+  // Pipeline 事件
+  | 'pipeline.started'
+  | 'pipeline.node_completed'
+  | 'pipeline.completed'
+  | 'pipeline.cancelled'
+  // Relations 事件
+  | 'relations.updated'
 
 /**
  * SSE 事件数据类型
@@ -108,6 +115,11 @@ class SSEClient {
       'todo.updated',
       'todo.deleted',
       'todo.completed',
+      'pipeline.started',
+      'pipeline.node_completed',
+      'pipeline.completed',
+      'pipeline.cancelled',
+      'relations.updated',
     ]
 
     eventTypes.forEach((eventType) => {

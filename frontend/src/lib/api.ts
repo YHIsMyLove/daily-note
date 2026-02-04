@@ -359,6 +359,9 @@ export const notesApi = {
   search: (query: string): ApiResponseType<NoteBlock[]> => apiClient.get('/api/notes/search', { params: { q: query } }),
   getRelated: (id: string): ApiResponseType<NoteBlock[]> => apiClient.get(`/api/notes/${id}/related`),
   analyze: (id: string): ApiResponseType<NoteBlock> => apiClient.post(`/api/notes/${id}/analyze`),
+  // 手动触发关联分析
+  analyzeRelations: (id: string): ApiResponseType<{ taskId: string }> =>
+    apiClient.post(`/api/notes/${id}/analyze-relations`),
 }
 
 /**
